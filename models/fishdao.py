@@ -16,4 +16,14 @@ class Fishdao:
     def get_all_fish_names(self):
         return list(self.all_fish.keys())
     
+    def get_all_scientific_names(self):
+        scientific_name_list=Fish.select(Fish.scientific_name)
+        to_return=[]
+        for name in scientific_name_list:
+            to_return.append(name.scientific_name)
+        return to_return
+
+    def get_all_fish_group_by_family(self):
+        to_return={}
+       
 

@@ -18,4 +18,4 @@ for key,value in all_fish.items():
 
 # print(tank)
 
-print(sample_fish_dao.get_all_fish_names())
+print(sample_fish_dao.get_all_fish_group_by_family())
