@@ -6,7 +6,7 @@ from models.fish import Fish
 # All above variables can be overrided in the constructor
 
 
-class fishtank:
+class Fishtank:
     def __init__(self, size=None, fish_map=None, status="Healthy"):
         if fish_map is None:
             fish_map = {}
