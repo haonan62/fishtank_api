@@ -13,4 +13,7 @@ class Fishdao:
                 to_set[scientific_name]=fish
         self.all_fish=to_set
     
+    def get_all_fish_names(self):
+        return list(self.all_fish.keys())
+    
 

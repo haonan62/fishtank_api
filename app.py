@@ -2,8 +2,8 @@ from models.fish import Fish
 from models.fishtank import Fishtank
 from models.fishdao import Fishdao
 
-a_fish=Fish.get(Fish.scientific_name == 'Abramites eques')
-b_fish=Fish.get(Fish.scientific_name == 'Neolamprologus caudopunctatus')
+# a_fish=Fish.get(Fish.scientific_name == 'Abramites eques')
+# b_fish=Fish.get(Fish.scientific_name == 'Neolamprologus caudopunctatus')
 
 sample_fish_dao=Fishdao()
 
@@ -16,4 +16,6 @@ for key,value in all_fish.items():
     tank.add_fish(value)
 
 
-print(tank)
+# print(tank)
+
+print(sample_fish_dao.get_all_fish_names())
