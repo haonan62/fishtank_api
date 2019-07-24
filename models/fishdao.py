@@ -1,6 +1,9 @@
 from models.fish import Fish
 
 all_fish_list = Fish.select()
+#note, although scientific name is the primary key in the database, here we use common names as key
+#becasue people are more familiar with common names than scientific names
+#some fish do not have common name, in those cases, we use scientific names as key
 class Fishdao:
     def __init__(self,all_fish=None):
         to_set={}
@@ -25,5 +28,14 @@ class Fishdao:
 
     def get_all_fish_group_by_family(self):
         to_return={}
+        for key,value in self.all_fish.items():
+            cur_family_name=value.family_name
+            if cur_family_name not in to_return:
+                to_return[cur_family_name]=[key]
+            elif cur_family_name in to_return:
+                fish_in_list=to_return[cur_family_name]
+                fish_in_list.append(key)
+                to_return[cur_family_name]=fish_in_list
+        return to_return
        
 

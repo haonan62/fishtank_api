@@ -28,6 +28,7 @@ class Fishtank:
         if isinstance(another_fish, Fish):
 
             if another_fish.scientific_name in self.fish_map:
+                
                 cur_number = self.fish_map[another_fish.scientific_name]+1
                 self.fish_map[another_fish.scientific_name] = cur_number
             elif another_fish.scientific_name not in self.fish_map:
