@@ -1,5 +1,5 @@
 from models.fish import Fish
-
+from models.fishdao import Fishdao
 # The default size of the fishtank is length:10, width:10, heigth:10
 # By default, there is no fish in the fishtank
 # By default the status of the fishtank is healthy
@@ -24,7 +24,7 @@ class Fishtank:
     def __str__(self):
         return str({"Size": str(self.size), "Fish": str(self.fish_map), "Status": self.status})
 
-    def add_fish(self, another_fish):
+    def casual_add_fish(self, another_fish):
         if isinstance(another_fish, Fish):
 
             if another_fish.scientific_name in self.fish_map:
@@ -34,5 +34,46 @@ class Fishtank:
             elif another_fish.scientific_name not in self.fish_map:
 
                 self.fish_map[another_fish.scientific_name] = 1
+        else:
+            raise Exception('The object is not fish')
+
+    def add_fish(self, another_fish):
+        temp_fish_dao=Fishdao()
+
+        all_fish=temp_fish_dao.all_fish
+        if isinstance(another_fish, Fish):
+
+            if another_fish.scientific_name in self.fish_map:
+
+                try:
+                    total_flag=False
+                    for key,value in self.fish_map.items():
+                        cur_fish=all_fish[key]
+                        temperature_flag=cur_fish.share_common_temperature_zone(another_fish)
+                        ph_flag=cur_fish.share_common_ph_zone(another_fish)
+                        water_hardness_flag=cur_fish.share_common_water_hardness_zone(another_fish)
+                        peace_flag=cur_fish.live_peacefully_with(another_fish)
+                
+                    cur_number = self.fish_map[another_fish.scientific_name]+1
+                    self.fish_map[another_fish.scientific_name] = cur_number
+                except Exception as e:
+                    print(e)
+                    
+            elif another_fish.scientific_name not in self.fish_map:
+                
+                try:
+                    total_flag=False
+                    for key,value in self.fish_map.items():
+                        cur_fish=all_fish[key]
+                        temperature_flag=cur_fish.share_common_temperature_zone(another_fish)
+                        ph_flag=cur_fish.share_common_ph_zone(another_fish)
+                        water_hardness_flag=cur_fish.share_common_water_hardness_zone(another_fish)
+                        peace_flag=cur_fish.live_peacefully_with(another_fish)
+                
+                    self.fish_map[another_fish.scientific_name] = 1
+                except Exception as e:
+                    print(e)
+                    
+
         else:
             raise Exception('The object is not fish')

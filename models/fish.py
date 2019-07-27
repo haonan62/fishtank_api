@@ -35,12 +35,12 @@ class Fish(BaseModel):
     fishtank_position=CharField()
 
     def __str__(self):
-        return "The scientific name is "+ self.scientific_name+ ", The family is "+ self.family_name
+        return self.scientific_name
     
     def share_common_temperature_zone(self,another_fish):
         if isinstance(another_fish, Fish):
             if self.temperature_min>another_fish.temperature_max or self.temperature_max<another_fish.temperature_min:
-                raise temperature_not_common_error
+                raise temperature_not_common_error('Temperature ranges are not common between {} and {}'.format(self.scientific_name,another_fish.scientific_name))
             else:
                 return True
         else:
@@ -49,7 +49,7 @@ class Fish(BaseModel):
     def share_common_ph_zone(self,another_fish):
         if isinstance(another_fish, Fish):
             if self.ph_min>another_fish.ph_max or self.ph_max<another_fish.ph_min:
-                raise ph_not_common_error
+                raise ph_not_common_error('Ph ranges are not common between {} and {}'.format(self.scientific_name,another_fish.scientific_name))
             else:
                 return True
         else:
@@ -58,7 +58,7 @@ class Fish(BaseModel):
     def share_common_water_hardness_zone(self,another_fish):
         if isinstance(another_fish, Fish):
             if self.water_hardness_min>another_fish.water_hardness_max or self.water_hardness_max<another_fish.water_hardness_min:
-                raise water_hardness_not_common_error
+                raise water_hardness_not_common_error('Water hardness ranges are not common between {} and {}'.format(self.scientific_name,another_fish.scientific_name))
             else:
                 return True
         else:
@@ -70,20 +70,20 @@ class Fish(BaseModel):
                 if self.in_species_temperament=='peaceful':
                     return True
                 else:
-                    raise in_species_competition_error
+                    raise in_species_competition_error('In species competition exists between two {}s'.format(self.scientific_name))
             elif self.scientific_name!=another_fish.scientific_name:
                 if self.cross_species_temperament=='peaceful' and another_fish.cross_species_temperament=='peaceful':
                     return True
                 elif self.cross_species_temperament=='aggressive/territorial' or another_fish.cross_species_temperament=='aggressive/territorial':
-                    raise cross_species_competition_error
+                    raise cross_species_competition_error('Cross species competition exists between {} and {}'.format(self.scientific_name,another_fish.scientific_name))
                 elif self.cross_species_temperament=='aggressive to smaller':
                     if self.size_max>another_fish.size_min:
-                        raise cross_species_competition_error
+                        raise cross_species_competition_error('Cross species competition exists between {} and {}, {} with size {} may attack {} with size {}'.format(self.scientific_name,another_fish.scientific_name,self.scientific_name,self.size_max,another_fish.scientific_name,another_fish.size_min))
                     else:
                         return True
                 elif another_fish.cross_species_temperament=='aggressive to smaller':
                     if another_fish.size_max>self.size_min:
-                        raise cross_species_competition_error
+                        raise cross_species_competition_error('Cross species competition exists between {} and {}, {} with size {} may attack {} with size {}'.format(self.scientific_name,another_fish.scientific_name,another_fish.scientific_name,another_fish.size_max,self.scientific_name,self.size_min))
                     else:
                         return True
                 

@@ -1,30 +1,28 @@
 from models.fish import Fish
 
 all_fish_list = Fish.select()
-#note, although scientific name is the primary key in the database, here we use common names as key
-#becasue people are more familiar with common names than scientific names
-#some fish do not have common name, in those cases, we use scientific names as key
+#The scientific name is the key for the all_fish map due to their uniqueness
 class Fishdao:
     def __init__(self,all_fish=None):
         to_set={}
         for fish in all_fish_list:
             scientific_name=fish.scientific_name
-            common_name=fish.common_name
-            if common_name is not None:
-                to_set[common_name]=fish
-            elif common_name is None:
-                to_set[scientific_name]=fish
+            to_set[scientific_name]=fish
         self.all_fish=to_set
     
-    def get_all_fish_names(self):
-        return list(self.all_fish.keys())
+    def get_all_common_names(self):
+        to_return=[]
+        for key,value in self.all_fish.items():
+            cur_common_name=None
+            if value.common_name is None:
+                cur_common_name=value.scientific_name
+            elif value.common_name is not None:
+                cur_common_name=value.common_name
+            to_return.append(cur_common_name)
+        return to_return
     
     def get_all_scientific_names(self):
-        scientific_name_list=Fish.select(Fish.scientific_name)
-        to_return=[]
-        for name in scientific_name_list:
-            to_return.append(name.scientific_name)
-        return to_return
+        return list(self.all_fish.keys())
 
     def get_all_fish_group_by_family(self):
         to_return={}

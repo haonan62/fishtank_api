@@ -1,3 +1,5 @@
+#All the exceptions for the application
+
 class FishError(Exception):
    """Base class for other exceptions"""
    pass

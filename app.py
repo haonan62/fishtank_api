@@ -13,9 +13,10 @@ all_fish=sample_fish_dao.all_fish
 tank=Fishtank(size=(100,100,30))
 
 for key,value in all_fish.items():
-    tank.add_fish(value)
+    tank.casual_add_fish(value)
 
 
+print(sample_fish_dao.get_all_common_names())
 # print(tank)
 
-print(sample_fish_dao.get_all_fish_group_by_family())
+# print(sample_fish_dao.get_all_fish_group_by_family())
