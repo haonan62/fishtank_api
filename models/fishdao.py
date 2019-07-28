@@ -24,15 +24,15 @@ class Fishdao:
     def get_all_scientific_names(self):
         return list(self.all_fish.keys())
 
-    def get_all_fish_group_by_family(self):
+    def get_all_fish_group_by_family_for_api(self):
         to_return={}
         for key,value in self.all_fish.items():
             cur_family_name=value.family_name
             if cur_family_name not in to_return:
-                to_return[cur_family_name]=[key]
+                to_return[cur_family_name]=[value.to_dic()]
             elif cur_family_name in to_return:
                 fish_in_list=to_return[cur_family_name]
-                fish_in_list.append(key)
+                fish_in_list.append(value.to_dic())
                 to_return[cur_family_name]=fish_in_list
         return to_return
        

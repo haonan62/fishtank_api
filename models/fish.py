@@ -37,6 +37,26 @@ class Fish(BaseModel):
     def __str__(self):
         return self.scientific_name
     
+    def to_dic(self):
+        return{
+            'scientific name':self.scientific_name,
+            'common name':self.common_name,
+            'family name':self.family_name,
+            'minimum size':self.size_min,
+            'maximum size': self.size_max,
+            'minimum ph': self.ph_min,
+            'maximum ph': self.ph_max,
+            'minimum water hardness': self.water_hardness_min,
+            'maximum water hardness': self.water_hardness_max,
+            'minimum temperature':self.temperature_min,
+            'maximum temperature': self.temperature_max,
+            'reproduce method': self.reproduce_method,
+            'origin': self.origin,
+            'in species temperament': self.in_species_temperament,
+            'cross species temperament': self.cross_species_temperament,
+            'fishtank position': self.fishtank_position
+        }
+    
     def share_common_temperature_zone(self,another_fish):
         if isinstance(another_fish, Fish):
             if self.temperature_min>another_fish.temperature_max or self.temperature_max<another_fish.temperature_min:

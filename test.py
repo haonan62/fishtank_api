@@ -16,10 +16,12 @@ tank=Fishtank(size=(100,100,30))
 #     tank.add_fish(b_fish)
 # except Exception as e:
 #     print(e)
-for key,value in all_fish.items():
-    try:
+# for key,value in all_fish.items():
+#     try:
     
-        tank.add_fish(value)
-    except Exception as e:
-        print(e)
-print(tank)
+#         tank.add_fish(value)
+#     except Exception as e:
+#         print(e)
+# print(tank)
+
+print(sample_fish_dao.get_all_fish_group_by_family_for_api())
