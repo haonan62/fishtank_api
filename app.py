@@ -128,6 +128,8 @@ def add_fish():
                 temp_fishtank.remove_fish(cur_fish)
         except Exception as e:
             return jsonify({'status':'error','message': e.args})
+    else:
+        return jsonify({'status':'error','message': "Specify a valid fishtank operation: add or remove"})
 
     cur_fishtank=temp_fishtank
     fishtank_map[target_fishtank_no]=cur_fishtank
