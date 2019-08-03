@@ -24,6 +24,9 @@ class Fishtank:
     def __str__(self):
         return str({"Size": str(self.size), "Fish": str(self.fish_map), "Status": self.status})
 
+    def get_total_status_for_api(self):
+        return {"Size": str(self.size), "Fish": str(self.fish_map), "Status": self.status}
+
     def casual_add_fish(self, another_fish):
         if isinstance(another_fish, Fish):
 
@@ -57,7 +60,7 @@ class Fishtank:
                     cur_number = self.fish_map[another_fish.scientific_name]+1
                     self.fish_map[another_fish.scientific_name] = cur_number
                 except Exception as e:
-                    print(e)
+                    raise e
                     
             elif another_fish.scientific_name not in self.fish_map:
                 
@@ -72,8 +75,31 @@ class Fishtank:
                 
                     self.fish_map[another_fish.scientific_name] = 1
                 except Exception as e:
-                    print(e)
+                    raise e
                     
 
+        else:
+            raise Exception('The object is not fish')
+
+
+
+
+    def remove_fish(self, another_fish):
+        temp_fish_dao=Fishdao()
+
+        all_fish=temp_fish_dao.all_fish
+        if isinstance(another_fish, Fish):
+
+            if another_fish.scientific_name in self.fish_map:
+
+                cur_fish_no=self.fish_map[another_fish.scientific_name]
+                if cur_fish_no>1:
+                    cur_fish_no=cur_fish_no-1
+                    self.fish_map[another_fish.scientific_name]=cur_fish_no
+                elif cur_fish_no<=1:
+                    self.fish_map.pop(another_fish.scientific_name)
+                    
+            elif another_fish.scientific_name not in self.fish_map:
+                raise Exception(another_fish.scientific_name+ ': No such fish in the fishtank')
         else:
             raise Exception('The object is not fish')
