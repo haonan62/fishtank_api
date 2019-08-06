@@ -26,18 +26,18 @@ fishtank_map={}
 # print(fish_dao_snapshot.get_all_common_names())
 
 
-@app.route('/')
+@app.route('/fishtank_api')
 def api_root():
     return 'Welcome to fishtank api'
 
-@app.route('/get_fish_by_group')
+@app.route('/fishtank_api/get_fish_by_group')
 def api_fish_groups():
 
     fish_in_group=fish_dao_snapshot.get_all_fish_group_by_family_for_api()
 
     return jsonify(fish_in_group)
 
-@app.route('/initialize_new_fishtank')
+@app.route('/fishtank_api/initialize_new_fishtank')
 def initialize_new_fish_tank():
 
     hash = hashlib.sha256()
@@ -49,7 +49,7 @@ def initialize_new_fish_tank():
     return jsonify({'status':'success','fishtank_number':unique_identifier,'fishtank':fishtank_map[unique_identifier].get_total_status_for_api()})
 
 
-@app.route('/remove_fish_tank', methods=['POST'])
+@app.route('/fishtank_api/remove_fish_tank', methods=['POST'])
 def remove_fish_tank():
     
     fishtank_key=None
@@ -65,14 +65,14 @@ def remove_fish_tank():
     except:
         return jsonify({'status':'error','message':'No such fishtank exists in the server'})
     
-@app.route('/get_all_fishtank_keys')
+@app.route('/fishtank_api/get_all_fishtank_keys')
 def get_all_fish_tank_keys():
 
     
     return jsonify({'all fishtanks_keys':list(fishtank_map.keys())})
     
 
-@app.route('/fishtank_operation', methods=['POST'])
+@app.route('/fishtank_api/fishtank_operation', methods=['POST'])
 def add_fish():
     payload=None
     instruction=None
