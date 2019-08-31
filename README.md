@@ -83,7 +83,7 @@ example: {"fishtank_no":"accabf084fcbe29002ec6965aeed035a7df90b3559ee60802e9c09f
 ```
 
 ## Functions to add
-Given a fish or a group of fish, determine the maximum fish species that the fishtank can hold(easy)  
+Given a fish or a group of fish, determine the maximum fish species that the fishtank can hold(requires background in optimization)  
 Session support(creation and expiry)  
 user module?(complicated)  
 fuzzy search(difficult, might make more sense to put into frontend)
