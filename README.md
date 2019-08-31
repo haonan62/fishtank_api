@@ -82,9 +82,17 @@ format: {"fishtank_no": unique identifier, "fish":list of fish's scientific name
 example: {"fishtank_no":"accabf084fcbe29002ec6965aeed035a7df90b3559ee60802e9c09f83398dbce","fish":["Acestrorhynchus altus","Alestopetersius caudalis"]}
 ```
 
+## Functions to add
+Given a fish or a group of fish, determine the maximum fish species that the fishtank can hold(easy)  
+Session support(creation and expiry)  
+user module?(complicated)  
+fuzzy search(difficult, might make more sense to put into frontend)
+
+
 ## Deployment
 
 Please use gunicorn and nginx to serve the production app. If you want configuration files for both, please approach the authors. But googling will be fine, there are plenty of online tutorials.
+There is also a separate branch for docker deployment, please refer to the branches or approach authors for deployment details.
 
 ## Built With
 
