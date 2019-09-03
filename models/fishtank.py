@@ -112,7 +112,7 @@ class Fishtank:
     #user has chosen, lots of computational power needed, meaning lots of optimization can be achieved given enough expertise
     # note: theoretically, this fuction works, but in reality, it does not
     #as it consumes too much memory when it comes to combinations e.g: 742 C 720=9.153544691 E+41
-    # any commercial computer do not have enough memory address for this stupid method
+    # any commercial computer do not have enough memory address for this stupid process
     # a smarter way to find best diversity is needed
     def maximize_diversity_given_fish(self):
         current_fish_species_in_tank=list(self.fish_map.keys())
@@ -126,10 +126,12 @@ class Fishtank:
             all_remaining_fish_scientific_names=all_remaining_fish.keys()
             current_combination_length=len(all_remaining_fish_scientific_names)
             for i in range(current_combination_length,0,-1):
-
+                
                 combinations_given_order = list(itertools.combinations(all_remaining_fish_scientific_names, r=i))
+                print("Current size of the combination :"+ str(len(combinations_given_order)))
                 for current_combination in combinations_given_order:
                     #create a temporary fishtank with only the user's pre-selected inside
+                    
                     temp_fishtank=self.copy()
                     maximum_diversity_flag=True
                     for current_fish_scientific_name in current_combination:
@@ -150,5 +152,7 @@ class Fishtank:
         elif len(current_fish_species_in_tank)==0:
             return "Still working on best combination for entire fish population"
 
+    def intelligent_maximization(self):
+        return []
 
 

@@ -45,3 +45,14 @@ class Fishdao:
             return to_return_copy
         else:
             return to_return_copy
+
+    #later change this into ORM methods
+    def retrieve_all_peaceful_fish(self):
+        return []
+        # sample_copy=self.all_fish.copy()
+        # to_return_copy=self.all_fish.copy()
+        # for key, value in sample_copy.items():
+        #     if value.cross_species_temperament!='peaceful':
+                
+
+        
