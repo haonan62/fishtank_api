@@ -10,6 +10,7 @@ class Fishdao:
             to_set[scientific_name]=fish
         self.all_fish=to_set
     
+    #If the fish has no common name, we'll have scientific name instead
     def get_all_common_names(self):
         to_return=[]
         for key,value in self.all_fish.items():
@@ -36,4 +37,11 @@ class Fishdao:
                 to_return[cur_family_name]=fish_in_list
         return to_return
        
-
+    def retrieve_remaining_fish(self,to_exclude):
+        to_return_copy=self.all_fish.copy()
+        if len(to_exclude)!=0:
+            for sample in to_exclude:
+                del to_return_copy[sample]
+            return to_return_copy
+        else:
+            return to_return_copy
