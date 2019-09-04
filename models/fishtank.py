@@ -125,6 +125,8 @@ class Fishtank:
             all_remaining_fish=Fishdao().retrieve_remaining_fish(current_fish_species_in_tank)
             all_remaining_fish_scientific_names=all_remaining_fish.keys()
             current_combination_length=len(all_remaining_fish_scientific_names)
+            # the for loop start from the largest possible length of combination to the shortest
+            # e.g: if there are 700 fish left, then we loop from 700, 699........1
             for i in range(current_combination_length,0,-1):
                 
                 combinations_given_order = list(itertools.combinations(all_remaining_fish_scientific_names, r=i))
@@ -152,7 +154,13 @@ class Fishtank:
         elif len(current_fish_species_in_tank)==0:
             return "Still working on best combination for entire fish population"
 
-    def intelligent_maximization(self):
+    def v2_maximize_diversity_given_fish(self):
+
         return []
+    
+    
+    def maximize_diversity_on_empty_tank(self):
+        return []
+
 
 

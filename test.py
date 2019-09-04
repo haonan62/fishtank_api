@@ -19,7 +19,10 @@ except Exception as e:
     print(e)
 print(tank)
 
+
+
 #Below method tests when there are two fish in the fishtank, what would be the maximum fish species a tank can hold
 maximum_fish_given_fish_in_tank=tank.maximize_diversity_given_fish()
 print(maximum_fish_given_fish_in_tank)
+
 

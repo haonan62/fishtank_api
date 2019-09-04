@@ -46,13 +46,15 @@ class Fishdao:
         else:
             return to_return_copy
 
-    #later change this into ORM methods
-    def retrieve_all_peaceful_fish(self):
-        return []
-        # sample_copy=self.all_fish.copy()
-        # to_return_copy=self.all_fish.copy()
-        # for key, value in sample_copy.items():
-        #     if value.cross_species_temperament!='peaceful':
-                
+   
+    # this method returns fish that are peaceful to both its own species and other species
+    def retrieve_enitirely_peaceful_fish(self):
+        return Fish.select().where((Fish.cross_species_temperament=='peaceful') & (Fish.in_species_temperament=='peaceful'))
+    # return fish that are peaceful among its own species
+    def retrieve_in_species_peaceful_fish(self):
+        return Fish.select().where(Fish.in_species_temperament=='peaceful')
+    # return fish that are peaceful with other fish species
+    def retrieve_cross_species_peaceful_fish(self):
+        return Fish.select().where(Fish.cross_species_temperament=='peaceful')       
 
         
