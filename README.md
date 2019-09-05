@@ -101,8 +101,8 @@ There is also a separate branch for docker deployment, please refer to the branc
 
 ## Authors
 
-* **Xu Haonan** - *Initial work* - [Xu Haonan](https://github.com/haonan62)
-* **Ma Chao** - *Initial work* - [George Ma](https://github.com/G1335721N)
+* **Xu Haonan** - *Initial work* - [Xu Haonan](https://github.com/haonan62), SIS,SMU  
+* **Ma Chao** - *Initial work* - [George Ma](https://github.com/G1335721N), Stern, NYU  
 
 ## License
 
