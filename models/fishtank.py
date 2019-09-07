@@ -32,6 +32,8 @@ class Fishtank:
     def get_total_status_for_api(self):
         return {"Size": str(self.size), "Fish": str(self.fish_map), "Status": self.status}
 
+    # DANGEROUS! This method adds fish to the fishtank without checking any conditions
+    # Only for developement purposes.
     def casual_add_fish(self, another_fish):
         if isinstance(another_fish, Fish):
 
@@ -45,6 +47,10 @@ class Fishtank:
         else:
             raise Exception('The object is not fish')
 
+    # Standard method for adding fish into the fishtank
+    # General logic is trying to invoke the coexist method with the fish any any other fish in current fishtank
+    # If the for loop does not throw any error, then the method returns a true, otherwise, the method throws the 
+    # exception to the higher layer
     def add_fish(self, another_fish):
         temp_fish_dao = Fishdao()
 
@@ -79,6 +85,16 @@ class Fishtank:
         else:
             raise Exception('The object is not fish')
 
+    def add_fish_list_in_sequence(self,fish_list):
+        for sample_fish in fish_list:
+            try:
+                self.add_fish(sample_fish)
+            except Exception as e:
+                print(str(e))
+        
+
+    
+    
     def remove_fish(self, another_fish):
         temp_fish_dao = Fishdao()
 
@@ -106,6 +122,8 @@ class Fishtank:
     # as it consumes too much memory when it comes to combinations e.g: 742 C 720=9.153544691 E+41
     # any commercial computer do not have enough memory address for this stupid process
     # a smarter way to find best diversity is needed
+
+    #if you want to improve the performance, please work on v2 or create your own v3 methods
     def maximize_diversity_given_fish(self):
         current_fish_species_in_tank = list(self.fish_map.keys())
         # if there is existing fish in the fishtank, then we use the existing fish as base to slowly add fish
@@ -148,9 +166,15 @@ class Fishtank:
         elif len(current_fish_species_in_tank) == 0:
             return "Still working on best combination for entire fish population"
 
-    def v2_maximize_diversity_given_fish(self):
+    def maximize_diversity_given_fish_v2(self):
+        current_fish_species_in_tank = [Fish.get(Fish.scientific_name == key) for key, value in self.fish_map.items()]
+        general_compatible_list=Fishdao().find_all_compatible_fish(current_fish_species_in_tank)
+        #TODO: perform internal combinations inside the to general_compatible_list
+        #because although we ensure individual fish in the general_compatible_list can live with fish in the tank
+        # we are not certain that the fish in the list can live with each other
 
-        return []
+
+        return general_compatible_list
 
     def maximize_diversity_on_empty_tank(self):
         return []
