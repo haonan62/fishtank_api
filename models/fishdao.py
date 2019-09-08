@@ -11,10 +11,9 @@ class Fishdao:
             scientific_name = fish.scientific_name
             to_set[scientific_name] = fish
         self.all_fish = to_set
-    
-    
 
     # If the fish has no common name, we'll have scientific name instead
+
     def get_all_common_names(self):
         to_return = []
         for key, value in self.all_fish.items():
@@ -63,57 +62,49 @@ class Fishdao:
     def retrieve_cross_species_peaceful_fish(self):
         return Fish.select().where(Fish.cross_species_temperament == 'peaceful')
 
-    def generate_dummy_peaceful_buffer_fish(self,target_fish_list):
-        to_return=None
-        ph_buffer_max=1000
-        ph_buffer_min=-1000
-        water_hardness_buffer_max=1000
-        water_hardness_buffer_min=-1000
-        temperature_buffer_max=1000
-        temperature_buffer_min=-1000
+    def generate_dummy_peaceful_buffer_fish(self, target_fish_list):
+        to_return = None
+        ph_buffer_max = 1000
+        ph_buffer_min = -1000
+        water_hardness_buffer_max = 1000
+        water_hardness_buffer_min = -1000
+        temperature_buffer_max = 1000
+        temperature_buffer_min = -1000
 
-        
-        if isinstance(target_fish_list,list):
+        if isinstance(target_fish_list, list):
             for individual_target in target_fish_list:
-                if individual_target.ph_min>ph_buffer_min:
-                    ph_buffer_min=individual_target.ph_min
-                if individual_target.ph_max<ph_buffer_max:
-                    ph_buffer_max=individual_target.ph_max
-                if individual_target.water_hardness_min>water_hardness_buffer_min:
-                    water_hardness_buffer_min=individual_target.water_hardness_min
-                if individual_target.water_hardness_max<water_hardness_buffer_max:
-                    water_hardness_buffer_max=individual_target.water_hardness_max
-                if individual_target.temperature_min>temperature_buffer_min:
-                    temperature_buffer_min=individual_target.temperature_min
-                if individual_target.temperature_max<temperature_buffer_max:
-                    temperature_buffer_max=individual_target.temperature_max
-        to_return=Fish(scientific_name='Dummy',common_name='Dummy',family_name='Dummy',size_min=1000,size_max=1001,ph_min=ph_buffer_min,ph_max=ph_buffer_max,water_hardness_min=water_hardness_buffer_min,water_hardness_max=water_hardness_buffer_max,temperature_min=temperature_buffer_min,temperature_max=temperature_buffer_max,reproduce_method='Dummy',origin='Dummy',in_species_temperament='peaceful',cross_species_temperament='peaceful',fishtank_position='Dummy')
+                if individual_target.ph_min > ph_buffer_min:
+                    ph_buffer_min = individual_target.ph_min
+                if individual_target.ph_max < ph_buffer_max:
+                    ph_buffer_max = individual_target.ph_max
+                if individual_target.water_hardness_min > water_hardness_buffer_min:
+                    water_hardness_buffer_min = individual_target.water_hardness_min
+                if individual_target.water_hardness_max < water_hardness_buffer_max:
+                    water_hardness_buffer_max = individual_target.water_hardness_max
+                if individual_target.temperature_min > temperature_buffer_min:
+                    temperature_buffer_min = individual_target.temperature_min
+                if individual_target.temperature_max < temperature_buffer_max:
+                    temperature_buffer_max = individual_target.temperature_max
+        to_return = Fish(scientific_name='Dummy', common_name='Dummy', family_name='Dummy', size_min=1000, size_max=1001, ph_min=ph_buffer_min, ph_max=ph_buffer_max, water_hardness_min=water_hardness_buffer_min, water_hardness_max=water_hardness_buffer_max,
+                         temperature_min=temperature_buffer_min, temperature_max=temperature_buffer_max, reproduce_method='Dummy', origin='Dummy', in_species_temperament='peaceful', cross_species_temperament='peaceful', fishtank_position='Dummy')
         return to_return
 
+    def find_all_compatible_fish(self, target_fish_list):
+        all_fish = copy.deepcopy(self.all_fish)
+        to_return = []
 
-    
-    def find_all_compatible_fish(self,target_fish_list):
-        all_fish=copy.deepcopy(self.all_fish)
-        to_return=[]
-        
-
-        for key,value in all_fish.items():
-            compatible_flag=True
+        for key, value in all_fish.items():
+            compatible_flag = True
             for sample in target_fish_list:
                 if sample.scientific_name != key:
                     try:
                         sample.coexist_together(value)
                     except:
-                        compatible_flag=False
+                        compatible_flag = False
                         break
                 else:
-                    compatible_flag=False
+                    compatible_flag = False
                     break
-            if compatible_flag==True:
+            if compatible_flag == True:
                 to_return.append(value)
         return to_return
-
-
-
-
-

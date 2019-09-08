@@ -49,7 +49,7 @@ class Fishtank:
 
     # Standard method for adding fish into the fishtank
     # General logic is trying to invoke the coexist method with the fish any any other fish in current fishtank
-    # If the for loop does not throw any error, then the method returns a true, otherwise, the method throws the 
+    # If the for loop does not throw any error, then the method returns a true, otherwise, the method throws the
     # exception to the higher layer
     def add_fish(self, another_fish):
         temp_fish_dao = Fishdao()
@@ -85,16 +85,13 @@ class Fishtank:
         else:
             raise Exception('The object is not fish')
 
-    def add_fish_list_in_sequence(self,fish_list):
+    def add_fish_list_in_sequence(self, fish_list):
         for sample_fish in fish_list:
             try:
                 self.add_fish(sample_fish)
             except Exception as e:
                 print(str(e))
-        
 
-    
-    
     def remove_fish(self, another_fish):
         temp_fish_dao = Fishdao()
 
@@ -123,7 +120,7 @@ class Fishtank:
     # any commercial computer do not have enough memory address for this stupid process
     # a smarter way to find best diversity is needed
 
-    #if you want to improve the performance, please work on v2 or create your own v3 methods
+    # if you want to improve the performance, please work on v2 or create your own v3 methods
     def maximize_diversity_given_fish(self):
         current_fish_species_in_tank = list(self.fish_map.keys())
         # if there is existing fish in the fishtank, then we use the existing fish as base to slowly add fish
@@ -167,12 +164,13 @@ class Fishtank:
             return "Still working on best combination for entire fish population"
 
     def maximize_diversity_given_fish_v2(self):
-        current_fish_species_in_tank = [Fish.get(Fish.scientific_name == key) for key, value in self.fish_map.items()]
-        general_compatible_list=Fishdao().find_all_compatible_fish(current_fish_species_in_tank)
-        #TODO: perform internal combinations inside the to general_compatible_list
-        #because although we ensure individual fish in the general_compatible_list can live with fish in the tank
+        current_fish_species_in_tank = [
+            Fish.get(Fish.scientific_name == key) for key, value in self.fish_map.items()]
+        general_compatible_list = Fishdao().find_all_compatible_fish(
+            current_fish_species_in_tank)
+        # TODO: perform internal combinations inside the to general_compatible_list
+        # because although we ensure individual fish in the general_compatible_list can live with fish in the tank
         # we are not certain that the fish in the list can live with each other
-
 
         return general_compatible_list
 
