@@ -163,6 +163,10 @@ class Fishtank:
         elif len(current_fish_species_in_tank) == 0:
             return "Still working on best combination for entire fish population"
 
+
+    # Some problems that are similar to this:
+    # constraint satisfaction problem
+    # combinatorial optimization
     def maximize_diversity_given_fish_v2(self):
         current_fish_species_in_tank = [
             Fish.get(Fish.scientific_name == key) for key, value in self.fish_map.items()]
@@ -171,6 +175,9 @@ class Fishtank:
         # TODO: perform internal combinations inside the to general_compatible_list
         # because although we ensure individual fish in the general_compatible_list can live with fish in the tank
         # we are not certain that the fish in the list can live with each other
+
+        # however, this once again falls into the trap of the first version above
+        # F**k, IS is useless
 
         return general_compatible_list
 

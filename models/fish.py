@@ -15,7 +15,6 @@ class BaseModel(Model):
     class Meta:
         database = database
 
-# the user model specifies its fields (or columns) declaratively, like django
 
 
 class Fish(BaseModel):
@@ -76,6 +75,13 @@ class Fish(BaseModel):
                 raise e
         else:
             raise Exception("The object is not fish")
+    
+    #This function examines whether the two fish share temperature zones in common
+    #There are six possible ways of relative positions between two fish's temperature zones
+    #A general gist is that if one fish's maximum temperature is smaller than another fish's minimum
+    #or one fish's minimum temperature is larger than another fish's maximum, then the two fish have
+    #no common temperature zones, in the above two cases, a custom error will be thrown
+    #When two fish can indeed share a common temperature zone, the method returns true
 
     def share_common_temperature_zone(self, another_fish):
         if isinstance(another_fish, Fish):
@@ -86,6 +92,8 @@ class Fish(BaseModel):
                 return True
         else:
             raise Exception("The object is not fish")
+    
+    #This function examines whether the two fish share ph zones in common
 
     def share_common_ph_zone(self, another_fish):
         if isinstance(another_fish, Fish):
@@ -96,6 +104,8 @@ class Fish(BaseModel):
                 return True
         else:
             raise Exception("The object is not fish")
+    
+    #This function examines whether the two fish share water hardness zones in common
 
     def share_common_water_hardness_zone(self, another_fish):
         if isinstance(another_fish, Fish):
@@ -107,6 +117,11 @@ class Fish(BaseModel):
         else:
             raise Exception("The object is not fish")
 
+    #This function examines whether the one fish shows aggression to another, or vice versa
+    #If the method detects the two fish are of the same species, then it will check the in_species_temperament
+    #If the two fish are different, then it will check the cross_species_temperament
+    #Size also matters, as some fish will only attack smaller, and some have a wirdo gut to attck larger
+    
     def live_peacefully_with(self, another_fish):
         if isinstance(another_fish, Fish):
             if self.scientific_name == another_fish.scientific_name:

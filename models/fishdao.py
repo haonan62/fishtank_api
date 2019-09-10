@@ -62,6 +62,9 @@ class Fishdao:
     def retrieve_cross_species_peaceful_fish(self):
         return Fish.select().where(Fish.cross_species_temperament == 'peaceful')
 
+    # This method is written in the hope to simplify the fish recommendation process by merging
+    # various boundaries of fish into one, however, it seems it is no longer useful
+    
     def generate_dummy_peaceful_buffer_fish(self, target_fish_list):
         to_return = None
         ph_buffer_max = 1000
