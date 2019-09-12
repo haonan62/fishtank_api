@@ -40,6 +40,33 @@ class Fishdao:
                 to_return[cur_family_name] = fish_in_list
         return to_return
 
+    
+    def get_all_fish_group_by_fishtank_position_for_api(self):
+        to_return = {}
+        for key, value in self.all_fish.items():
+            cur_position = value.fishtank_position
+            if cur_position not in to_return:
+                to_return[cur_position] = [value.to_dic()]
+            elif cur_position in to_return:
+                fish_in_list = to_return[cur_position]
+                fish_in_list.append(value.to_dic())
+                to_return[cur_position] = fish_in_list
+        return to_return
+    
+    
+    
+    def get_all_fish_group_by_origin_for_api(self):
+        to_return = {}
+        for key, value in self.all_fish.items():
+            cur_origin = value.origin
+            if cur_origin not in to_return:
+                to_return[cur_origin] = [value.to_dic()]
+            elif cur_origin in to_return:
+                fish_in_list = to_return[cur_origin]
+                fish_in_list.append(value.to_dic())
+                to_return[cur_origin] = fish_in_list
+        return to_return
+
     # This method returns all fish except for the fish we want to exclude
     def retrieve_remaining_fish(self, to_exclude):
         to_return_copy = self.all_fish.copy()

@@ -32,6 +32,8 @@ tank.set_tank_status("unhealthy")
 tank.set_size([1,2,3])
 print(tank)
 
+print(sample_fish_dao.get_all_fish_group_by_fishtank_position_for_api())
+
 
 # Below method tests when there are two fish in the fishtank, what would be the maximum fish species a tank can hold
 # maximum_fish_given_fish_in_tank=tank.maximize_diversity_given_fish_v2()
