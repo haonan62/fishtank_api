@@ -23,6 +23,19 @@ class Fishtank:
         elif size is not None:
             self.size = size
 
+    # setter for fishmap
+    def set_fish_map(self,value):
+        setattr(self,'fish_map',value)
+    
+    # setter for status
+    def set_tank_status(self,value):
+        setattr(self,'status',value)
+    
+    # setter for size of the tank
+    def set_size(self,value):
+        setattr(self,'size',value)
+
+    # method for making a duplicate instead of a reference
     def copy(self):
         return copy.deepcopy(self)
 

@@ -40,6 +40,7 @@ class Fishdao:
                 to_return[cur_family_name] = fish_in_list
         return to_return
 
+    # This method returns all fish except for the fish we want to exclude
     def retrieve_remaining_fish(self, to_exclude):
         to_return_copy = self.all_fish.copy()
         if len(to_exclude) != 0:

@@ -26,8 +26,14 @@ except Exception as e:
     print(e)
 print(tank)
 
+print("Setting a new map")
+tank.set_fish_map({"ga":1})
+tank.set_tank_status("unhealthy")
+tank.set_size([1,2,3])
+print(tank)
+
 
 # Below method tests when there are two fish in the fishtank, what would be the maximum fish species a tank can hold
-maximum_fish_given_fish_in_tank=tank.maximize_diversity_given_fish_v2()
-print(maximum_fish_given_fish_in_tank)
-print(len(maximum_fish_given_fish_in_tank))
+# maximum_fish_given_fish_in_tank=tank.maximize_diversity_given_fish_v2()
+# print(maximum_fish_given_fish_in_tank)
+# print(len(maximum_fish_given_fish_in_tank))
