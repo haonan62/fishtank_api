@@ -8,6 +8,15 @@ Idea: A Web-based application: FishTank allows users to create a fish tank. Whil
 
 Fish tank API offers an intelligent and elegant backend solution for fish lovers to create a fish tank in harmony.
 
+## Research Statement
+
+A spectre is haunting the fishtank – the spectre of optimization. All the powers of the academia have
+entered into a holy alliance to exorcise this spectre: UNSW and NYU, HKU and SMU, faculty of Computer Science and Mathematics.   
+
+Please refer to [Functions to add](#Functions-to-add) to get the detailed problem description.  
+
+
+
 ## Getting Started
 
 Run git clone <https://github.com/haonan62/fishtank_api.git>
@@ -83,7 +92,7 @@ example: {"fishtank_no":"accabf084fcbe29002ec6965aeed035a7df90b3559ee60802e9c09f
 ```
 
 ## Functions to add
-Given a fish or a group of fish, determine the maximum fish species that the fishtank can hold(requires background in optimization)  
+Given a fish or a group of fish, determine the maximum fish species that the fishtank can hold(requires background in optimization), target method: maximize_diversity_given_fish in [fishtank.py](./models/fishtank.py)    
 Session support(creation and expiry)  
 user module?(complicated)  
 fuzzy search(difficult, might make more sense to put into frontend)
