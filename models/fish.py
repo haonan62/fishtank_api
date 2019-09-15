@@ -40,22 +40,22 @@ class Fish(BaseModel):
 
     def to_dic(self):
         return{
-            'scientific name': self.scientific_name,
-            'common name': self.common_name,
-            'family name': self.family_name,
-            'minimum size': self.size_min,
-            'maximum size': self.size_max,
-            'minimum ph': self.ph_min,
-            'maximum ph': self.ph_max,
-            'minimum water hardness': self.water_hardness_min,
-            'maximum water hardness': self.water_hardness_max,
-            'minimum temperature': self.temperature_min,
-            'maximum temperature': self.temperature_max,
-            'reproduce method': self.reproduce_method,
+            'scientific_name': self.scientific_name,
+            'common_name': self.common_name,
+            'family_name': self.family_name,
+            'minimum_size': self.size_min,
+            'maximum_size': self.size_max,
+            'minimum_ph': self.ph_min,
+            'maximum_ph': self.ph_max,
+            'minimum_water_hardness': self.water_hardness_min,
+            'maximum_water_hardness': self.water_hardness_max,
+            'minimum_temperature': self.temperature_min,
+            'maximum_temperature': self.temperature_max,
+            'reproduce_method': self.reproduce_method,
             'origin': self.origin,
-            'in species temperament': self.in_species_temperament,
-            'cross species temperament': self.cross_species_temperament,
-            'fishtank position': self.fishtank_position
+            'in_species_temperament': self.in_species_temperament,
+            'cross_species_temperament': self.cross_species_temperament,
+            'fishtank_position': self.fishtank_position
         }
     # important!!!! This is the function indicating whether a fish could coexist with another fish
     # if can, it will return a true
