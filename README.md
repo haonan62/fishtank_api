@@ -10,7 +10,7 @@ Fish tank API offers an intelligent and elegant backend solution for fish lovers
 
 ## Research Statement
 
-A spectre is haunting the fishtank – the spectre of optimization. All the powers of the academia have
+A spectre is haunting the fishtank – the spectre of complexity. All the powers of the academia have
 entered into a holy alliance to exorcise this spectre: UNSW and NYU, HKU and SMU, faculty of Computer Science and Mathematics.   
 
 Please refer to [Functions to add](#Functions-to-add) to get the detailed problem description.  

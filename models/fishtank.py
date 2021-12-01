@@ -103,7 +103,8 @@ class Fishtank:
             try:
                 self.add_fish(sample_fish)
             except Exception as e:
-                print(str(e))
+                raise e
+                # print(str(e))
 
     def remove_fish(self, another_fish):
         temp_fish_dao = Fishdao()
