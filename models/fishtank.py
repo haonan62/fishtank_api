@@ -195,5 +195,72 @@ class Fishtank:
 
         return general_compatible_list
 
+    # This function returns the largest group of new species that can live with every fish in the tank and with
+    # each other, as a sorted list of scientific names, one fish per species. An empty tank searches the whole database
+    # Two species only count as compatible when coexist_together passes in both directions, so the returned fish
+    # can be added through add_fish in any order
+    # The problem is a maximum clique search: candidates are the nodes, compatible pairs are the edges
+    # Branch and bound keeps it fast, a greedy colouring of the remaining candidates gives an upper bound on how many
+    # more species can still join the current group (Tomita and Seki), so most branches are cut early
+    def maximize_diversity_given_fish_v3(self):
+        fish_dao = Fishdao()
+        current_fish_in_tank = [fish_dao.all_fish[key] for key in self.fish_map]
+        all_remaining_fish = fish_dao.retrieve_remaining_fish(list(self.fish_map.keys()))
+
+        def coexist_both_ways(first_fish, second_fish):
+            try:
+                first_fish.coexist_together(second_fish)
+                second_fish.coexist_together(first_fish)
+                return True
+            except Exception:
+                return False
+
+        # sorted, so the same fish give the same answer whatever order the database returns them in
+        candidates = sorted(scientific_name for scientific_name, fish in all_remaining_fish.items()
+                            if all(coexist_both_ways(resident, fish) for resident in current_fish_in_tank))
+
+        compatible_with = {scientific_name: set() for scientific_name in candidates}
+        for i, first_name in enumerate(candidates):
+            for second_name in candidates[i + 1:]:
+                if coexist_both_ways(all_remaining_fish[first_name], all_remaining_fish[second_name]):
+                    compatible_with[first_name].add(second_name)
+                    compatible_with[second_name].add(first_name)
+
+        # orders the candidates by colour, fish of the same colour are pairwise incompatible, so at most one of each
+        # colour can join, the bound of a candidate is the number of colours up to and including its own
+        def colour_candidates(remaining):
+            colour_classes = []
+            for scientific_name in sorted(remaining, key=lambda name: (-len(compatible_with[name] & remaining), name)):
+                for colour_class in colour_classes:
+                    if not (compatible_with[scientific_name] & colour_class):
+                        colour_class.add(scientific_name)
+                        break
+                else:
+                    colour_classes.append({scientific_name})
+            ordered = []
+            for colour_number, colour_class in enumerate(colour_classes, start=1):
+                for scientific_name in sorted(colour_class):
+                    ordered.append((scientific_name, colour_number))
+            return ordered
+
+        maximum_diversity_combination = []
+
+        def expand(current_group, remaining):
+            nonlocal maximum_diversity_combination
+            # try the candidates with the highest bound first, stop once no bound can beat the best group found
+            for scientific_name, bound in reversed(colour_candidates(remaining)):
+                if len(current_group) + bound <= len(maximum_diversity_combination):
+                    return
+                new_group = current_group + [scientific_name]
+                new_remaining = remaining & compatible_with[scientific_name]
+                if new_remaining:
+                    expand(new_group, new_remaining)
+                elif len(new_group) > len(maximum_diversity_combination):
+                    maximum_diversity_combination = new_group
+                remaining = remaining - {scientific_name}
+
+        expand([], set(candidates))
+        return sorted(maximum_diversity_combination)
+
     def maximize_diversity_on_empty_tank(self):
         return []
