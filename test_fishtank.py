@@ -2,7 +2,7 @@ import unittest
 from unittest import mock
 
 from models.fish import Fish
-from models.fish_error import FishError
+from models.fish_error import FishError, cross_species_competition_error
 from models.fishtank import Fishtank
 
 # Tests for Fishtank.maximize_diversity_given_fish_v3
@@ -224,6 +224,45 @@ class TemperamentTest(FishPoolTestCase):
                             [make_fish('Alpha', size=(10, 10), cross_species_temperament='aggressive to smaller'),
                              make_fish('Bravo', size=(10, 10), cross_species_temperament='aggressive to smaller')])
         self.assertEqual(result, ['Alpha', 'Bravo'])
+
+    # fish imported from FishBase have no temperament and no size yet, a size may be filled in before the temperament
+    def unknown_fish(self, name, size=(None, None)):
+        return make_fish(name, size=size, cross_species_temperament='unknown', in_species_temperament='unknown')
+
+    KNOWN_TEMPERAMENTS = [('peaceful', (5, 6)), ('aggressive to smaller', (1, 2)), ('aggressive to smaller', (30, 40)),
+                          ('aggressive/territorial', (5, 6)), ('unknown', (None, None))]
+
+    def test_fish_of_unknown_temperament_never_joins_another_species(self):
+        for temperament, size in self.KNOWN_TEMPERAMENTS:
+            for unknown_size in [(None, None), (50, 60)]:
+                known = make_fish('Known', size=size, cross_species_temperament=temperament)
+                with self.subTest(temperament=temperament, size=size, unknown_size=unknown_size, unknown='candidate'):
+                    self.assertEqual(self.solve([known], [self.unknown_fish('Unknown', unknown_size)]), [])
+                with self.subTest(temperament=temperament, size=size, unknown_size=unknown_size, unknown='in tank'):
+                    self.assertEqual(self.solve([self.unknown_fish('Unknown', unknown_size)], [known]), [])
+
+    def test_unknown_temperament_is_reported_as_cross_species_conflict_both_ways(self):
+        # checked before sizes are compared, so a missing size never causes any other error
+        for temperament, size in self.KNOWN_TEMPERAMENTS:
+            for unknown_size in [(None, None), (50, 60)]:
+                known = make_fish('Known', size=size, cross_species_temperament=temperament)
+                unknown = self.unknown_fish('Unknown', unknown_size)
+                for first, second in ((known, unknown), (unknown, known)):
+                    with self.subTest(temperament=temperament, size=size, unknown_size=unknown_size, first=first.scientific_name):
+                        with self.assertRaises(cross_species_competition_error):
+                            first.coexist_together(second)
+
+    def test_fish_of_unknown_temperament_cannot_be_kept_twice(self):
+        unknown = self.unknown_fish('Unknown')
+        self.use_pool([unknown])
+        tank = self.tank_with([unknown])
+        with self.assertRaises(FishError):
+            tank.add_fish(unknown)
+        self.assertEqual(tank.fish_map, {'Unknown': 1})
+
+    def test_empty_tank_ignores_fish_of_unknown_temperament(self):
+        result = self.solve([], [self.unknown_fish('Alpha'), self.unknown_fish('Bravo'), make_fish('Charlie'), make_fish('Delta')])
+        self.assertEqual(result, ['Charlie', 'Delta'])
 
     def test_in_species_temperament_does_not_block_one_new_species(self):
         # only one fish of each new species is added, add_fish only checks in-species temperament from the second fish
