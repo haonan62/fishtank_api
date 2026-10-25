@@ -17,8 +17,10 @@ class BaseModel(Model):
 
 
 
+# Every fish is identified by its id, the scientific name is unique but may change when a species is renamed
 class Fish(BaseModel):
-    scientific_name = CharField(unique=True, primary_key=True)
+    id = AutoField()
+    scientific_name = CharField(unique=True)
     common_name = CharField()
     family_name = CharField()
     size_min = IntegerField()
@@ -40,6 +42,7 @@ class Fish(BaseModel):
 
     def to_dic(self):
         return{
+            'id': self.id,
             'scientific_name': self.scientific_name,
             'common_name': self.common_name,
             'family_name': self.family_name,

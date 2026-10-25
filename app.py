@@ -79,7 +79,7 @@ def add_fish():
     payload = None
     instruction = None
     target_fishtank_no = None
-    fish_name_list = None
+    fish_id_list = None
     fish_list = []
     cur_fishtank = None
 
@@ -102,16 +102,17 @@ def add_fish():
         return jsonify({'status': 'error', 'message': 'please provide fishtank number'})
 
     try:
-        fish_name_list = payload['fish']
+        fish_id_list = payload['fish']
     except:
-        return jsonify({'status': 'error', 'message': 'please provide a list of fishnames in array(scietific names)'})
+        return jsonify({'status': 'error', 'message': 'please provide a list of fish ids in array'})
 
-    for cur_fish_name in fish_name_list:
-        try:
-            cur_fish = fish_dao_snapshot.all_fish[cur_fish_name]
-            fish_list.append(cur_fish)
-        except Exception as e:
-            return jsonify({'status': 'error', 'message': cur_fish_name + " does not exist in database"})
+    for cur_fish_id in fish_id_list:
+        # ids are whole numbers, json true and false would otherwise pass as 1 and 0
+        if not isinstance(cur_fish_id, int) or isinstance(cur_fish_id, bool):
+            return jsonify({'status': 'error', 'message': '{} is not a valid fish id'.format(cur_fish_id)})
+        if cur_fish_id not in fish_dao_snapshot.all_fish_by_id:
+            return jsonify({'status': 'error', 'message': '{} does not exist in database'.format(cur_fish_id)})
+        fish_list.append(fish_dao_snapshot.all_fish_by_id[cur_fish_id])
 
     temp_fishtank = copy.deepcopy(cur_fishtank)
 

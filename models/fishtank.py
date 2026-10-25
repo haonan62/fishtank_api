@@ -42,8 +42,11 @@ class Fishtank:
     def __str__(self):
         return str({"Size": str(self.size), "Fish": str(self.fish_map), "Status": self.status})
 
+    # the api identifies fish by id, so the fish map is reported with ids instead of scientific names
     def get_total_status_for_api(self):
-        return {"Size": str(self.size), "Fish": str(self.fish_map), "Status": self.status}
+        all_fish = Fishdao().all_fish
+        fish_map_by_id = {all_fish[key].id: value for key, value in self.fish_map.items()}
+        return {"Size": str(self.size), "Fish": str(fish_map_by_id), "Status": self.status}
 
     # DANGEROUS! This method adds fish to the fishtank without checking any conditions
     # Only for developement purposes.
