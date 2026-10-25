@@ -17,28 +17,43 @@ class BaseModel(Model):
 
 
 
+FISHBASE_SUMMARY_URL = 'https://www.fishbase.se/summary/{}'
+
+# A temperament that is not known yet, such a fish is kept apart from every other species
+UNKNOWN_TEMPERAMENT = 'unknown'
+
+
 # Every fish is identified by its id, the scientific name is unique but may change when a species is renamed
+# Fish imported from FishBase do not have a size, reproduce method, origin or fishtank position, these are None
 class Fish(BaseModel):
     id = AutoField()
     scientific_name = CharField(unique=True)
-    common_name = CharField()
+    common_name = CharField(null=True)
     family_name = CharField()
-    size_min = IntegerField()
-    size_max = IntegerField()
+    size_min = IntegerField(null=True)
+    size_max = IntegerField(null=True)
     ph_min = DoubleField()
     ph_max = DoubleField()
     water_hardness_min = IntegerField()
     water_hardness_max = IntegerField()
     temperature_min = IntegerField()
     temperature_max = IntegerField()
-    reproduce_method = CharField()
-    origin = CharField()
+    reproduce_method = CharField(null=True)
+    origin = CharField(null=True)
     in_species_temperament = CharField()
     cross_species_temperament = CharField()
-    fishtank_position = CharField()
+    fishtank_position = CharField(null=True)
+    fishbase_spec_code = IntegerField(null=True, unique=True)
+    data_source = CharField()
 
     def __str__(self):
         return self.scientific_name
+
+    # FishBase asks for a link back to the source page of the data
+    def fishbase_url(self):
+        if self.fishbase_spec_code is None:
+            return None
+        return FISHBASE_SUMMARY_URL.format(self.fishbase_spec_code)
 
     def to_dic(self):
         return{
@@ -58,7 +73,10 @@ class Fish(BaseModel):
             'origin': self.origin,
             'in_species_temperament': self.in_species_temperament,
             'cross_species_temperament': self.cross_species_temperament,
-            'fishtank_position': self.fishtank_position
+            'fishtank_position': self.fishtank_position,
+            'data_source': self.data_source,
+            'fishbase_url': self.fishbase_url(),
+            'pictures': [picture.to_dic() for picture in self.pictures]
         }
     # important!!!! This is the function indicating whether a fish could coexist with another fish
     # if can, it will return a true
@@ -124,7 +142,8 @@ class Fish(BaseModel):
     #If the method detects the two fish are of the same species, then it will check the in_species_temperament
     #If the two fish are different, then it will check the cross_species_temperament
     #Size also matters, as some fish will only attack smaller, and some have a wirdo gut to attck larger
-    
+    #A fish whose temperament is not known yet is never assumed to be peaceful, this is checked before anything else
+
     def live_peacefully_with(self, another_fish):
         if isinstance(another_fish, Fish):
             if self.scientific_name == another_fish.scientific_name:
@@ -134,7 +153,10 @@ class Fish(BaseModel):
                     raise in_species_competition_error(
                         'In species competition exists between two {}s'.format(self.scientific_name))
             elif self.scientific_name != another_fish.scientific_name:
-                if self.cross_species_temperament == 'peaceful' and another_fish.cross_species_temperament == 'peaceful':
+                if self.cross_species_temperament == UNKNOWN_TEMPERAMENT or another_fish.cross_species_temperament == UNKNOWN_TEMPERAMENT:
+                    raise cross_species_competition_error('Temperament is not known yet between {} and {}'.format(
+                        self.scientific_name, another_fish.scientific_name))
+                elif self.cross_species_temperament == 'peaceful' and another_fish.cross_species_temperament == 'peaceful':
                     return True
                 elif self.cross_species_temperament == 'aggressive/territorial' or another_fish.cross_species_temperament == 'aggressive/territorial':
                     raise cross_species_competition_error('Cross species competition exists between {} and {}'.format(
@@ -154,3 +176,31 @@ class Fish(BaseModel):
 
         else:
             raise Exception("The object is not fish")
+
+
+# A picture is not stored, only the url where it is hosted, the credit follows FishBase's terms:
+# full attribution to the person or organization and the indication 'from FishBase'
+class FishPicture(BaseModel):
+    id = AutoField()
+    fish = ForeignKeyField(Fish, backref='pictures', column_name='fish_id')
+    url = TextField(unique=True)
+    author = TextField(null=True)
+    licence = TextField()
+    source_url = TextField()
+
+    class Meta:
+        table_name = 'fish_picture'
+
+    def credit(self):
+        if self.author is None:
+            return 'from FishBase'
+        return '{}, from FishBase'.format(self.author)
+
+    def to_dic(self):
+        return {
+            'url': self.url,
+            'author': self.author,
+            'licence': self.licence,
+            'credit': self.credit(),
+            'source_url': self.source_url
+        }

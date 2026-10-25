@@ -39,12 +39,20 @@ To run the app, enter "python app.py"
 ```
 
 ```
-To run the tests, enter "python -m unittest test_fishtank test_database test_api -v"
+To run the tests, enter "python -m unittest test_fishtank test_database test_api test_import -v"
 ```
 
 ```
 data/fish.db carries its schema version, to upgrade an older copy enter
 "python migrate_db.py <old database> <new database>", the old database is left unchanged
+```
+
+```
+data/fish.db already includes the fish and pictures of FishBase release 25.04, to import a release again:
+download species, stocks, synonyms, families and picturesmain (.parquet) from
+https://huggingface.co/datasets/cboettig/fishbase/tree/main/data/fb/v25.04/parquet into one folder,
+run pip install pyarrow (only needed for the import), then enter
+"python import_fishbase.py <folder> <old database> <new database>", the old database is left unchanged
 ```
 
 ## Important APIs and their functionalities
@@ -53,6 +61,10 @@ data/fish.db carries its schema version, to upgrade an older copy enter
 GET
 ip:5000/fishtank_api/get_fish_by_group
 Sorting fish based on their families
+Every fish carries its id, its data_source (aqua-fish.net or FishBase 25.04), a fishbase_url to its FishBase page
+when known, and its pictures: hosted urls with author, licence, credit and source page, the pictures are not stored here
+Fish from FishBase have an "unknown" temperament and no size, origin, reproduce method or fishtank position yet,
+until their temperament is known they can only be kept alone, one fish in a fishtank
 ```
 
 ```
@@ -125,8 +137,23 @@ There is also a separate branch for docker deployment, please refer to the branc
 
 ## License
 
-This project is licensed under the MIT License
+The code of this project is licensed under the MIT License
+
+The data in data/fish.db is not covered by the MIT License:
+* Fish with data_source "FishBase 25.04", the FishBase species codes and all pictures come from FishBase and are licensed
+  under [Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)](https://creativecommons.org/licenses/by-nc/4.0/),
+  they may only be used for non-commercial purposes, clearly identified as coming from FishBase, with a link to the source page
+* Pictures are only linked, each keeps its own copyright, only pictures marked for free use, non-commercial use or public domain
+  are linked, and each must be shown with its credit ("author, from FishBase")
+* Fish with data_source "aqua-fish.net" come from <https://en.aqua-fish.net/>, © Aqua-Fish.Net, all rights reserved
 
 ## Acknowledgments
 
 * The authors thank <https://en.aqua-fish.net/> for providing high quality data regarding different traits of fish
+* Additional species, FishBase species codes and pictures are taken from FishBase:
+  Froese, R. and D. Pauly. Editors. 2025. FishBase. World Wide Web electronic publication. www.fishbase.org, version (04/2025).
+  Data taken from FishBase should also be credited by the Main Ref. and/or Data Ref. of the respective record,
+  see <https://www.fishbase.se/summary/citation.php>
+* Pictures are credited to their photographers on every picture, as recorded by FishBase
+* The FishBase release was read from the parquet tables that Carl Boettiger publishes for
+  [rfishbase](https://github.com/ropensci/rfishbase) at <https://huggingface.co/datasets/cboettig/fishbase>

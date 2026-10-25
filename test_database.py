@@ -6,7 +6,7 @@ import unittest
 from unittest import mock
 
 import migrate_db
-from models.fish import Fish, DATABASE
+from models.fish import Fish, FishPicture, DATABASE
 
 # Tests for migrate_db.py and for the committed data/fish.db
 # Run from the project root: python -m unittest test_database -v
@@ -64,6 +64,19 @@ def read_version(path):
         connection.close()
 
 
+def insert_columns(connection, row):
+    columns = sorted(row)
+    return connection.execute('INSERT INTO fish ({}) VALUES ({})'.format(', '.join(columns), ', '.join(['?'] * len(columns))),
+                              [row[column] for column in columns])
+
+
+# inserts a legacy row with every column the latest schema requires
+def insert_complete_fish(connection, legacy_row):
+    row = dict(zip(COLUMNS, legacy_row))
+    row['data_source'] = 'aqua-fish.net'
+    return insert_columns(connection, row)
+
+
 def read_bytes(path):
     with open(path, 'rb') as database_file:
         return database_file.read()
@@ -98,31 +111,80 @@ class MigrationTest(unittest.TestCase):
 
     def test_reports_and_stores_latest_version(self):
         self.assertEqual(read_version(self.legacy_path), 0)
-        self.assertEqual(migrate_db.migrate(self.legacy_path, self.target_path), 1)
-        self.assertEqual(read_version(self.target_path), 1)
+        self.assertEqual(migrate_db.migrate(self.legacy_path, self.target_path), 2)
+        self.assertEqual(read_version(self.target_path), 2)
 
     def test_scientific_names_stay_unique(self):
         migrate_db.migrate(self.legacy_path, self.target_path)
         connection = sqlite3.connect(self.target_path)
         self.addCleanup(connection.close)
-        with self.assertRaises(sqlite3.IntegrityError):
-            connection.execute('INSERT INTO fish ({}) VALUES ({})'.format(', '.join(COLUMNS), ', '.join(['?'] * len(COLUMNS))),
-                               LEGACY_ROWS[0])
+        with self.assertRaises(sqlite3.IntegrityError) as raised:
+            insert_complete_fish(connection, LEGACY_ROWS[0])
+        self.assertIn('UNIQUE', str(raised.exception))
 
     def test_id_of_a_removed_fish_is_never_reused(self):
         migrate_db.migrate(self.legacy_path, self.target_path)
         connection = sqlite3.connect(self.target_path)
         self.addCleanup(connection.close)
         connection.execute('DELETE FROM fish WHERE id = ?', (len(LEGACY_ROWS),))
-        new_fish = ('Corydoras acrensis',) + LEGACY_ROWS[0][1:]
-        cursor = connection.execute('INSERT INTO fish ({}) VALUES ({})'.format(', '.join(COLUMNS), ', '.join(['?'] * len(COLUMNS))),
-                                    new_fish)
+        cursor = insert_complete_fish(connection, ('Corydoras acrensis',) + LEGACY_ROWS[0][1:])
         self.assertEqual(cursor.lastrowid, len(LEGACY_ROWS) + 1)
+
+    def test_id_removed_before_version_2_is_never_reused_after_it(self):
+        version_1_path = self.target_path + '.v1'
+        with mock.patch.object(migrate_db, 'LATEST_VERSION', 1):
+            migrate_db.migrate(self.legacy_path, version_1_path)
+        connection = sqlite3.connect(version_1_path)
+        connection.execute('DELETE FROM fish WHERE id = ?', (len(LEGACY_ROWS),))
+        connection.commit()
+        connection.close()
+
+        migrate_db.migrate(version_1_path, self.target_path)
+        connection = sqlite3.connect(self.target_path)
+        self.addCleanup(connection.close)
+        cursor = insert_complete_fish(connection, ('Corydoras acrensis',) + LEGACY_ROWS[0][1:])
+        self.assertEqual(cursor.lastrowid, len(LEGACY_ROWS) + 1)
+
+    def test_version_2_makes_attributes_fishbase_lacks_optional(self):
+        migrate_db.migrate(self.legacy_path, self.target_path)
+        connection = sqlite3.connect(self.target_path)
+        self.addCleanup(connection.close)
+        connection.execute('''INSERT INTO fish (scientific_name, family_name, ph_min, ph_max, water_hardness_min,
+            water_hardness_max, temperature_min, temperature_max, in_species_temperament, cross_species_temperament,
+            fishbase_spec_code, data_source) VALUES ('Ameca splendens', 'Goodeidae', 6.0, 8.0, 9, 19, 26, 32,
+            'unknown', 'unknown', 6228, 'FishBase 25.04')''')
+        for missing_column in ('ph_min', 'temperature_max', 'water_hardness_min', 'in_species_temperament', 'data_source'):
+            with self.subTest(required=missing_column):
+                row = dict(zip(COLUMNS, ('Aphyocharax erythrurus',) + LEGACY_ROWS[0][1:]))
+                row['data_source'] = 'FishBase 25.04'
+                row[missing_column] = None
+                with self.assertRaises(sqlite3.IntegrityError):
+                    insert_columns(connection, row)
+
+    def test_version_2_records_the_source_of_existing_fish(self):
+        migrate_db.migrate(self.legacy_path, self.target_path)
+        connection = sqlite3.connect(self.target_path)
+        self.addCleanup(connection.close)
+        self.assertEqual(connection.execute('SELECT DISTINCT data_source, fishbase_spec_code FROM fish').fetchall(),
+                         [('aqua-fish.net', None)])
+        self.assertEqual(connection.execute('SELECT count(*) FROM fish_picture').fetchone()[0], 0)
+
+    def test_fishbase_species_code_and_picture_url_are_unique(self):
+        migrate_db.migrate(self.legacy_path, self.target_path)
+        connection = sqlite3.connect(self.target_path)
+        self.addCleanup(connection.close)
+        connection.execute('UPDATE fish SET fishbase_spec_code = 2001 WHERE id = 1')
+        with self.assertRaises(sqlite3.IntegrityError):
+            connection.execute('UPDATE fish SET fishbase_spec_code = 2001 WHERE id = 2')
+        picture = "INSERT INTO fish_picture (fish_id, url, licence, source_url) VALUES (1, 'https://www.fishbase.se/images/species/Coado_u0.jpg', 'free use', 'https://www.fishbase.se/summary/2001')"
+        connection.execute(picture)
+        with self.assertRaises(sqlite3.IntegrityError):
+            connection.execute(picture)
 
     def test_migrating_an_up_to_date_database_changes_nothing(self):
         migrate_db.migrate(self.legacy_path, self.target_path)
         again_path = self.target_path + '.again'
-        self.assertEqual(migrate_db.migrate(self.target_path, again_path), 1)
+        self.assertEqual(migrate_db.migrate(self.target_path, again_path), 2)
         self.assertEqual(read_rows_by_name(again_path), read_rows_by_name(self.target_path))
 
     def test_source_is_never_changed(self):
@@ -162,11 +224,40 @@ class CommittedDatabaseTest(unittest.TestCase):
     def test_is_at_latest_version(self):
         self.assertEqual(read_version(DATABASE), migrate_db.LATEST_VERSION)
 
-    def test_ids_follow_scientific_name_order(self):
-        rows = read_rows_by_name(DATABASE)
+    def read(self, sql):
+        connection = sqlite3.connect(DATABASE)
+        try:
+            return connection.execute(sql).fetchall()
+        finally:
+            connection.close()
+
+    def test_aqua_fish_ids_follow_scientific_name_order(self):
+        rows = self.read("SELECT id, scientific_name FROM fish WHERE data_source = 'aqua-fish.net'")
         self.assertEqual(len(rows), 743)
-        expected = {name: new_id for new_id, name in enumerate(sorted(rows), start=1)}
-        self.assertEqual({name: row[0] for name, row in rows.items()}, expected)
+        expected = {name: new_id for new_id, name in enumerate(sorted(name for _, name in rows), start=1)}
+        self.assertEqual({name: fish_id for fish_id, name in rows}, expected)
+
+    def test_fishbase_fish_follow_in_scientific_name_order(self):
+        rows = self.read("SELECT id, scientific_name FROM fish WHERE data_source = 'FishBase 25.04' ORDER BY id")
+        self.assertEqual(len(rows), 297)
+        self.assertEqual([fish_id for fish_id, _ in rows], list(range(744, 744 + 297)))
+        self.assertEqual([name for _, name in rows], sorted(name for _, name in rows))
+
+    def test_fishbase_fish_have_unknown_temperament_and_a_species_code(self):
+        self.assertEqual(self.read("SELECT DISTINCT in_species_temperament, cross_species_temperament, fishbase_spec_code IS NULL FROM fish WHERE data_source = 'FishBase 25.04'"),
+                         [('unknown', 'unknown', 0)])
+
+    def test_no_other_source_or_temperament_is_present(self):
+        self.assertEqual(self.read('SELECT DISTINCT data_source FROM fish ORDER BY 1'), [('FishBase 25.04',), ('aqua-fish.net',)])
+        self.assertEqual(self.read("SELECT count(*) FROM fish WHERE data_source = 'aqua-fish.net' AND 'unknown' IN (in_species_temperament, cross_species_temperament)"),
+                         [(0,)])
+
+    def test_every_picture_is_a_reusable_fishbase_photo_of_a_known_fish(self):
+        self.assertEqual(self.read('SELECT count(*) FROM fish_picture WHERE fish_id NOT IN (SELECT id FROM fish)'), [(0,)])
+        self.assertEqual(self.read("SELECT count(*) FROM fish_picture WHERE url NOT LIKE 'https://www.fishbase.se/images/species/%' OR source_url NOT LIKE 'https://www.fishbase.se/summary/%'"),
+                         [(0,)])
+        self.assertEqual(set(self.read('SELECT DISTINCT licence FROM fish_picture')),
+                         {('free use',), ('non-commercial use',), ('public domain',)})
 
 
 class FishModelTest(unittest.TestCase):
@@ -183,9 +274,22 @@ class FishModelTest(unittest.TestCase):
                          'maximum_temperature', 'reproduce_method', 'origin', 'in_species_temperament',
                          'cross_species_temperament', 'fishtank_position'}
         dic = fish.to_dic()
-        self.assertEqual(set(dic), previous_keys | {'id'})
+        self.assertEqual(set(dic), previous_keys | {'id', 'data_source', 'fishbase_url', 'pictures'})
         self.assertEqual(dic['id'], fish.id)
+        self.assertEqual(dic['data_source'], 'aqua-fish.net')
+        self.assertIsNotNone(fish.fishbase_spec_code)
+        self.assertEqual(dic['fishbase_url'], 'https://www.fishbase.se/summary/{}'.format(fish.fishbase_spec_code))
         self.assertEqual(dic['scientific_name'], 'Corydoras acrensis')
+
+    def test_fish_without_species_code_has_no_fishbase_url(self):
+        self.assertIsNone(Fish(scientific_name='Blood parrot cichlid').fishbase_url())
+
+    def test_to_dic_lists_pictures_with_fishbase_credit(self):
+        picture = FishPicture.select().where(FishPicture.author.is_null(False)).order_by(FishPicture.id).get()
+        dic = picture.fish.to_dic()
+        self.assertIn({'url': picture.url, 'author': picture.author, 'licence': picture.licence,
+                       'credit': picture.author + ', from FishBase', 'source_url': picture.source_url}, dic['pictures'])
+        self.assertEqual(FishPicture(author=None).credit(), 'from FishBase')
 
 
 if __name__ == '__main__':

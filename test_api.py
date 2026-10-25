@@ -14,6 +14,8 @@ class ApiTest(unittest.TestCase):
         cls.peaceful_id = Fish.get(Fish.scientific_name == 'Corydoras acrensis').id
         cls.other_peaceful_id = Fish.get(Fish.scientific_name == 'Corydoras adolfoi').id
         cls.aggressive_id = Fish.get(Fish.scientific_name == 'Cynotilapia afra').id
+        cls.unknown_temperament_id = Fish.get(Fish.scientific_name == 'Ameca splendens').id
+        cls.all_ids = sorted(fish.id for fish in Fish.select())
 
     def setUp(self):
         app.fishtank_map.clear()
@@ -36,9 +38,39 @@ class ApiTest(unittest.TestCase):
     def test_fish_groups_include_every_id(self):
         groups = self.client.get('/fishtank_api/get_fish_by_group').get_json()
         all_fish = [fish for family in groups.values() for fish in family]
-        self.assertEqual(sorted(fish['id'] for fish in all_fish), list(range(1, 744)))
+        self.assertEqual(sorted(fish['id'] for fish in all_fish), self.all_ids)
+        self.assertEqual(self.all_ids, list(range(1, len(self.all_ids) + 1)))
         for fish in all_fish:
             self.assertEqual(Fish.get_by_id(fish['id']).scientific_name, fish['scientific_name'])
+
+    def test_fish_groups_link_pictures_and_fishbase_pages(self):
+        groups = self.client.get('/fishtank_api/get_fish_by_group').get_json()
+        all_fish = {fish['id']: fish for family in groups.values() for fish in family}
+        new_fish = all_fish[self.unknown_temperament_id]
+        self.assertEqual((new_fish['data_source'], new_fish['cross_species_temperament'], new_fish['minimum_size']),
+                         ('FishBase 25.04', 'unknown', None))
+        self.assertTrue(new_fish['fishbase_url'].startswith('https://www.fishbase.se/summary/'))
+        pictures = [picture for fish in all_fish.values() for picture in fish['pictures']]
+        self.assertTrue(pictures)
+        for picture in pictures:
+            self.assertTrue(picture['url'].startswith('https://www.fishbase.se/images/species/'))
+            self.assertTrue(picture['credit'].endswith('from FishBase'))
+            self.assertIn(picture['licence'], ('free use', 'non-commercial use', 'public domain'))
+
+    def test_fish_of_unknown_temperament_lives_alone(self):
+        tank = self.new_tank()
+        response = self.operate('add', tank, [self.unknown_temperament_id])
+        self.assertEqual(response['current_fishtank']['Fish'], str({self.unknown_temperament_id: 1}))
+        for other_id in (self.peaceful_id, self.unknown_temperament_id):
+            with self.subTest(other_id=other_id):
+                self.assertEqual(self.operate('add', tank, [other_id])['status'], 'error')
+        self.assertEqual(self.fish_in_tank(tank), str({self.unknown_temperament_id: 1}))
+
+    def test_fish_of_unknown_temperament_cannot_join_other_species(self):
+        tank = self.new_tank()
+        self.operate('add', tank, [self.peaceful_id])
+        self.assertEqual(self.operate('add', tank, [self.unknown_temperament_id])['status'], 'error')
+        self.assertEqual(self.fish_in_tank(tank), str({self.peaceful_id: 1}))
 
     def test_new_tank_is_empty(self):
         response = self.client.get('/fishtank_api/initialize_new_fishtank').get_json()
@@ -78,7 +110,7 @@ class ApiTest(unittest.TestCase):
 
     def test_unknown_ids_are_rejected(self):
         tank = self.new_tank()
-        for unknown_id in (0, -1, 744, 999999):
+        for unknown_id in (0, -1, self.all_ids[-1] + 1, 999999):
             with self.subTest(fish_id=unknown_id):
                 response = self.operate('add', tank, [unknown_id])
                 self.assertEqual(response, {'status': 'error', 'message': '{} does not exist in database'.format(unknown_id)})
