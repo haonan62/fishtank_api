@@ -5,12 +5,16 @@ all_fish_list = Fish.select()
 
 
 class Fishdao:
+    # all_fish_by_id serves the api, which identifies fish by id
     def __init__(self, all_fish=None):
         to_set = {}
+        to_set_by_id = {}
         for fish in all_fish_list:
             scientific_name = fish.scientific_name
             to_set[scientific_name] = fish
+            to_set_by_id[fish.id] = fish
         self.all_fish = to_set
+        self.all_fish_by_id = to_set_by_id
 
     # If the fish has no common name, we'll have scientific name instead
 

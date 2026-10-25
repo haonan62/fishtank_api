@@ -38,6 +38,15 @@ Activate virtual environment, run pip install peewee flask
 To run the app, enter "python app.py"
 ```
 
+```
+To run the tests, enter "python -m unittest test_fishtank test_database test_api -v"
+```
+
+```
+data/fish.db carries its schema version, to upgrade an older copy enter
+"python migrate_db.py <old database> <new database>", the old database is left unchanged
+```
+
 ## Important APIs and their functionalities
 
 ```
@@ -70,11 +79,12 @@ Retrieve all unique identifiers of the key(This is only for developement purpose
 POST
 ip:5000/fishtank_api/fishtank_operation
 This method carries the main logic. It can either add or remove a group of fish from the fishtank with conditional checking.
+Fish are identified by their id, which get_fish_by_group returns with every fish. The fish in a fishtank are reported as {id: number of fish}
 1(add fish):
 url parameters: ip:5000/fishtank_api/fishtank_operation?action=add
 form data is in json
-format: {"fishtank_no": unique identifier, "fish":list of fish's scientific names}
-example: {"fishtank_no":"accabf084fcbe29002ec6965aeed035a7df90b3559ee60802e9c09f83398dbce","fish":["Acestrorhynchus altus","Alestopetersius caudalis"]}
+format: {"fishtank_no": unique identifier, "fish":list of fish ids}
+example: {"fishtank_no":"accabf084fcbe29002ec6965aeed035a7df90b3559ee60802e9c09f83398dbce","fish":[11,22]}
 
 sample output:
 {
@@ -87,8 +97,8 @@ sample output:
 2(remove fish):
 url parameters: ip:5000/fishtank_api/fishtank_operation?action=remove
 form data is in json
-format: {"fishtank_no": unique identifier, "fish":list of fish's scientific names}
-example: {"fishtank_no":"accabf084fcbe29002ec6965aeed035a7df90b3559ee60802e9c09f83398dbce","fish":["Acestrorhynchus altus","Alestopetersius caudalis"]}
+format: {"fishtank_no": unique identifier, "fish":list of fish ids}
+example: {"fishtank_no":"accabf084fcbe29002ec6965aeed035a7df90b3559ee60802e9c09f83398dbce","fish":[11,22]}
 ```
 
 ## Functions to add
