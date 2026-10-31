@@ -1,4 +1,4 @@
-from models.fish import Fish
+from fishtank.models.fish import Fish
 import copy
 
 

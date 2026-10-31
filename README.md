@@ -25,21 +25,21 @@ Run git clone <https://github.com/haonan62/fishtank_api.git>
 
 ```
 Python version 3.11 or newer
-Python packages: see requirements.txt (flask, peewee, gunicorn)
+Python packages: see pyproject.toml (flask, peewee, gunicorn)
 ```
 
 ### Installing
 
 ```
-Activate virtual environment, run pip install -r requirements.txt
+Activate virtual environment, run pip install -e .
 ```
 
 ```
-To run the app, enter "python app.py"
+To run the app, enter "flask --app fishtank run --debug"
 ```
 
 ```
-To run the tests, enter "python -m unittest test_fishtank test_database test_api test_accounts test_import -v"
+To run the tests, enter "python -m unittest -v"
 ```
 
 ```
@@ -50,22 +50,24 @@ Fish added to data/fish.db later only reach an app database that is created afte
 ```
 
 ```
-To make the first admin, enter "flask --app app create-admin <username>" and type a password
-Admins can then promote other users through the api, or enter "flask --app app set-role <username> admin"
+To make the first admin, enter "flask --app fishtank create-admin <username>" and type a password
+Admins can then promote other users through the api, or enter "flask --app fishtank set-role <username> admin"
 ```
 
 ```
 data/fish.db carries its schema version, to upgrade an older copy enter
-"python migrate_db.py <old database> <new database>", the old database is left unchanged
+"python -m fishtank.migrations <old database> <new database>", the old database is left unchanged
 ```
 
 ```
 data/fish.db already includes the fish and pictures of FishBase release 25.04, to import a release again:
 download species, stocks, synonyms, families and picturesmain (.parquet) from
 https://huggingface.co/datasets/cboettig/fishbase/tree/main/data/fb/v25.04/parquet into one folder,
-run pip install pyarrow (only needed for the import), then enter
-"python import_fishbase.py <folder> <old database> <new database>", the old database is left unchanged
+run pip install -e ".[fishbase]" (pyarrow is only needed for the import), then enter
+"python -m fishtank.fishbase_import <folder> <old database> <new database>", the old database is left unchanged
 ```
+
+The layout of the code, and how to work on it together, is described in [CONTRIBUTING.md](./CONTRIBUTING.md)
 
 ## Important APIs and their functionalities
 
@@ -169,13 +171,13 @@ PATCH ip:5000/fishtank_api/users/<id>   {"role": "user" or "admin"}, the last ad
 ```
 
 ## Functions to add
-Given a fish or a group of fish, determine the maximum fish species that the fishtank can hold(requires background in optimization), target method: maximize_diversity_given_fish in [fishtank.py](./models/fishtank.py)    
+Given a fish or a group of fish, determine the maximum fish species that the fishtank can hold(requires background in optimization), target method: maximize_diversity_given_fish in [fishtank.py](./fishtank/simulation/fishtank.py)    
 fuzzy search(difficult, might make more sense to put into frontend)
 
 
 ## Deployment
 
-Please use gunicorn and nginx to serve the production app, e.g. gunicorn -b 0.0.0.0:5000 "app:create_app()".
+Please use gunicorn and nginx to serve the production app, e.g. gunicorn -b 0.0.0.0:5000 "fishtank:create_app()".
 The app keeps its data in one sqlite file, so run a single instance and keep the file (FISHTANK_DATABASE) on a persistent volume. If you want configuration files for both, please approach the authors. But googling will be fine, there are plenty of online tutorials.
 There is also a separate branch for docker deployment, please refer to the branches or approach authors for deployment details.
 

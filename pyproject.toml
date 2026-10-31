@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fishtank"
+version = "0.2.0"
+description = "A webservice for achieving fish harmony"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT (code only, see README.md for the data)" }
+authors = [{ name = "Xu Haonan" }, { name = "Ma Chao" }]
+# pinned, this is an app and every machine should run the same versions
+dependencies = [
+    "Flask==3.1.3",
+    "peewee==4.5.3",
+    "gunicorn==26.2.0",
+]
+
+[project.optional-dependencies]
+# only needed for python -m fishtank.fishbase_import
+fishbase = ["pyarrow==14.0.2"]
+
+[tool.setuptools.packages.find]
+include = ["fishtank*"]

@@ -1,8 +1,8 @@
 from flask import Blueprint
 
-from api.common import ApiError, admin_required, json_body, reject_unknown_fields, success
-from models.database import database
-from models.user import ROLE_ADMIN, ROLES, User
+from fishtank.api.common import ApiError, admin_required, json_body, reject_unknown_fields, success
+from fishtank.db import database
+from fishtank.models.user import ROLE_ADMIN, ROLES, User
 
 blueprint = Blueprint('users', __name__)
 

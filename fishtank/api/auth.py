@@ -3,9 +3,9 @@ import re
 from flask import Blueprint, g
 from peewee import IntegrityError
 
-from api.common import ApiError, json_body, login_required, reject_unknown_fields, success
-from models.database import database, to_iso
-from models.user import AuthToken, User
+from fishtank.api.common import ApiError, json_body, login_required, reject_unknown_fields, success
+from fishtank.db import database, to_iso
+from fishtank.models.user import AuthToken, User
 
 blueprint = Blueprint('auth', __name__)
 
@@ -28,7 +28,7 @@ def logged_in(user, status_code=200):
     return success(status_code, user=user.to_dic(), token=token, expires_at=to_iso(record.expires_at))
 
 
-# everyone registers as a user, admins are made with "flask --app app create-admin" or by another admin
+# everyone registers as a user, admins are made with "flask --app fishtank create-admin" or by another admin
 @blueprint.route('/auth/register', methods=['POST'])
 def register():
     payload = json_body()

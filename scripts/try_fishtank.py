@@ -1,6 +1,8 @@
-from models.fish import Fish
-from models.fishtank import Fishtank
-from models.fishdao import Fishdao
+# A playground for the simulation on the committed fish database, it runs for a long time
+# Run from the project root after pip install -e .: python scripts/try_fishtank.py
+from fishtank.models.fish import Fish
+from fishtank.simulation.fishtank import Fishtank
+from fishtank.simulation.fishdao import Fishdao
 import hashlib
 import time
 import itertools

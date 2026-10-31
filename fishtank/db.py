@@ -1,7 +1,9 @@
 from datetime import datetime, timezone
-import os.path
+import os
 
 from peewee import Model, SqliteDatabase
+
+from fishtank import migrations
 
 current_file = os.path.abspath(os.path.dirname(__file__))
 
@@ -20,6 +22,16 @@ database = SqliteDatabase(SEED_DATABASE, pragmas=PRAGMAS)
 class BaseModel(Model):
     class Meta:
         database = database
+
+
+# The app works on its own database, made from the committed data/fish.db the first time it starts
+# and brought to the latest schema every time after
+def prepare_database(path):
+    if os.path.exists(path):
+        migrations.upgrade(path)
+    else:
+        os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+        migrations.migrate(SEED_DATABASE, path)
 
 
 def use_database(path):

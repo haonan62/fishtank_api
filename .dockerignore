@@ -1,4 +1,6 @@
 .venv/
 instance/
 __pycache__/
+*.egg-info/
 .git/
+.github/

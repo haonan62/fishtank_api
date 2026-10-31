@@ -6,7 +6,7 @@ import sys
 # Upgrades a copy of the fish database to the latest schema, the source file is never changed
 # The schema version is kept in sqlite's user_version, each upgrade step runs only once,
 # so migrating an up to date database just copies it
-# Usage: python migrate_db.py data/fish.db data/fish_migrated.db
+# Usage: python -m fishtank.migrations data/fish.db data/fish_migrated.db
 
 LATEST_VERSION = 3
 
@@ -172,6 +172,6 @@ def upgrade(path):
 
 if __name__ == '__main__':
     if len(sys.argv) != 3:
-        print('Usage: python migrate_db.py <source database> <target database>')
+        print('Usage: python -m fishtank.migrations <source database> <target database>')
         sys.exit(1)
     print('Migrated to version {}'.format(migrate(sys.argv[1], sys.argv[2])))

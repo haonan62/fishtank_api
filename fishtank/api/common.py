@@ -2,7 +2,7 @@ from functools import wraps
 
 from flask import g, jsonify, request
 
-from models.user import AuthToken
+from fishtank.models.user import AuthToken
 
 
 # Raised anywhere in a request, answered as {'status': 'error', 'message': ...} with the given http status
