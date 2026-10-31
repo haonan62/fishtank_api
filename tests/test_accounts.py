@@ -1,14 +1,14 @@
 from datetime import timedelta
 import unittest
 
-from models.database import utcnow
-from models.fish import Fish, FishPicture
-from models.fishtank_record import FishtankRecord
-from models.user import AuthToken, User
-from test_api import ApiTestCase
+from fishtank.db import utcnow
+from fishtank.models.fish import Fish, FishPicture
+from fishtank.models.fishtank_record import FishtankRecord
+from fishtank.models.user import AuthToken, User
+from tests.api_test_case import ApiTestCase
 
 # Tests for users, roles, saved fishtanks and the admin fish api
-# Run from the project root: python -m unittest test_accounts -v
+# Run from the project root: python -m unittest tests.test_accounts -v
 
 # a fish with every field the api asks for, aggressive to smaller fish so it needs a size
 NEW_FISH = {

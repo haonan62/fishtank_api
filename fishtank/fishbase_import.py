@@ -3,13 +3,13 @@ import os
 import sqlite3
 import sys
 
-import migrate_db
+from fishtank import migrations
 
 # Adds freshwater aquarium fish from a FishBase release to a copy of the fish database, the source file is never changed
 # FishBase data is licensed under CC BY-NC 4.0, see the Acknowledgments in README.md
 # The tables are the parquet files of a FishBase release, as published for rfishbase on
 # https://huggingface.co/datasets/cboettig/fishbase (data/fb/v25.04/parquet), reading them needs pyarrow
-# Usage: python import_fishbase.py <folder with the parquet files> data/fish.db data/fish_imported.db
+# Usage: python -m fishtank.fishbase_import <folder with the parquet files> data/fish.db data/fish_imported.db
 #
 # - only species sold in the aquarium trade, living in freshwater, with all six water parameters are added
 # - species we already have are recognised by scientific name, also when FishBase lists our name as a synonym
@@ -196,7 +196,7 @@ def read_fishbase_tables(directory):
 # Copies the source to the target at the latest schema version, then adds the fish and pictures in one transaction
 # Running it again on an imported database adds nothing
 def import_tables(tables, source_path, target_path):
-    migrate_db.migrate(source_path, target_path)
+    migrations.migrate(source_path, target_path)
     connection = sqlite3.connect(target_path, isolation_level=None)
     try:
         connection.execute('BEGIN')
@@ -230,6 +230,6 @@ def import_tables(tables, source_path, target_path):
 
 if __name__ == '__main__':
     if len(sys.argv) != 4:
-        print('Usage: python import_fishbase.py <folder with the parquet files> <source database> <target database>')
+        print('Usage: python -m fishtank.fishbase_import <folder with the parquet files> <source database> <target database>')
         sys.exit(1)
     print(import_tables(read_fishbase_tables(sys.argv[1]), sys.argv[2], sys.argv[3]))

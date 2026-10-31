@@ -5,7 +5,7 @@ import secrets
 from peewee import *
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from models.database import BaseModel, to_iso, utcnow
+from fishtank.db import BaseModel, to_iso, utcnow
 
 ROLE_USER = 'user'
 ROLE_ADMIN = 'admin'

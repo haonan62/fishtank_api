@@ -3,10 +3,10 @@ import secrets
 
 from peewee import *
 
-from models.database import BaseModel, to_iso, utcnow
-from models.fish import Fish
-from models.fishtank import Fishtank
-from models.user import User
+from fishtank.db import BaseModel, to_iso, utcnow
+from fishtank.models.fish import Fish
+from fishtank.simulation.fishtank import Fishtank
+from fishtank.models.user import User
 
 DEFAULT_SIZE = (100, 100, 30)
 # a visitor's fishtank is removed after a day without changes, unless a user saves it

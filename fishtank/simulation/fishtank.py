@@ -1,6 +1,6 @@
-from models.fish import Fish
-from models.fishdao import Fishdao
-from models.fish_error import fish_not_in_fishtank_error
+from fishtank.models.fish import Fish
+from fishtank.simulation.fishdao import Fishdao
+from fishtank.simulation.errors import fish_not_in_fishtank_error
 import itertools
 import copy
 # The default size of the fishtank is length:10, width:10, heigth:10

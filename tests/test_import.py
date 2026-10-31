@@ -5,11 +5,11 @@ import tempfile
 import unittest
 from unittest import mock
 
-import import_fishbase
-from test_database import LEGACY_SCHEMA, LEGACY_ROWS
+from fishtank import fishbase_import
+from tests.test_migrations import LEGACY_SCHEMA, LEGACY_ROWS
 
-# Tests for import_fishbase.py, on a small legacy database and hand written FishBase rows, no parquet files needed
-# Run from the project root: python -m unittest test_import -v
+# Tests for fishbase_import.py, on a small legacy database and hand written FishBase rows, no parquet files needed
+# Run from the project root: python -m unittest tests.test_import -v
 
 # our fish besides LEGACY_ROWS: one FishBase renamed, one whose old name is a synonym of two FishBase species,
 # and two whose old names are synonyms of the same FishBase species
@@ -103,7 +103,7 @@ class ImportTest(unittest.TestCase):
         self.legacy_count = len(rows)
 
     def run_import(self, tables=None, source_path=None, target_path=None):
-        return import_fishbase.import_tables(tables or fishbase_tables(), source_path or self.source_path,
+        return fishbase_import.import_tables(tables or fishbase_tables(), source_path or self.source_path,
                                              target_path or self.target_path)
 
     def query(self, sql, parameters=(), path=None):
@@ -209,7 +209,7 @@ class ImportTest(unittest.TestCase):
             self.assertEqual(source_file.read(), before)
 
     def test_failed_import_adds_nothing(self):
-        with mock.patch.object(import_fishbase, 'select_pictures', side_effect=RuntimeError('pictures failed')):
+        with mock.patch.object(fishbase_import, 'select_pictures', side_effect=RuntimeError('pictures failed')):
             with self.assertRaises(RuntimeError):
                 self.run_import()
         self.assertEqual(self.query('SELECT count(*), count(fishbase_spec_code) FROM fish'), [(self.legacy_count, 0)])
@@ -234,7 +234,7 @@ class WaterParametersTest(unittest.TestCase):
         ]
         for description, row, expected in cases:
             with self.subTest(description):
-                self.assertEqual(import_fishbase.water_parameters(row), expected)
+                self.assertEqual(fishbase_import.water_parameters(row), expected)
 
 
 class ReusableLicenceTest(unittest.TestCase):
@@ -252,7 +252,7 @@ class ReusableLicenceTest(unittest.TestCase):
         ]
         for copyright_text, public_domain, expected in cases:
             with self.subTest(copyright=copyright_text, public_domain=public_domain):
-                self.assertEqual(import_fishbase.reusable_licence(copyright_text, public_domain), expected)
+                self.assertEqual(fishbase_import.reusable_licence(copyright_text, public_domain), expected)
 
 
 if __name__ == '__main__':

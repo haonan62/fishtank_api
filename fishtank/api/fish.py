@@ -3,11 +3,11 @@ import math
 from flask import Blueprint, request
 from peewee import IntegrityError
 
-from api.common import ApiError, admin_required, is_integer, json_body, success
-from models.database import database
-from models.fish import CROSS_SPECIES_TEMPERAMENTS, IN_SPECIES_TEMPERAMENTS, UNKNOWN_TEMPERAMENT, Fish, FishPicture
-from models.fishdao import Fishdao
-from models.fishtank_record import FishtankFish, FishtankRecord
+from fishtank.api.common import ApiError, admin_required, is_integer, json_body, success
+from fishtank.db import database
+from fishtank.models.fish import CROSS_SPECIES_TEMPERAMENTS, IN_SPECIES_TEMPERAMENTS, UNKNOWN_TEMPERAMENT, Fish, FishPicture
+from fishtank.simulation.fishdao import Fishdao
+from fishtank.models.fishtank_record import FishtankFish, FishtankRecord
 
 blueprint = Blueprint('fish', __name__)
 

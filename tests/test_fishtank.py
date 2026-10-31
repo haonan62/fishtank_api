@@ -1,17 +1,16 @@
 import unittest
 from unittest import mock
 
-from models.fish import Fish
-from models.fish_error import FishError, cross_species_competition_error
-from models.fishtank import Fishtank
+from fishtank.models.fish import Fish
+from fishtank.simulation.errors import FishError, cross_species_competition_error
+from fishtank.simulation.fishtank import Fishtank
 
 # Tests for Fishtank.maximize_diversity_given_fish_v3
 # Given the fish already in the tank, the method returns the largest group of new species that can live
 # with every fish in the tank and with each other, as a sorted list of scientific names
 # Two species only count as compatible when coexist_together passes in both directions
 #
-# Run from the project root: python -m unittest test_fishtank -v
-# Name the module explicitly, plain discovery would also import test.py, which runs a long script
+# Run from the project root: python -m unittest tests.test_fishtank -v
 
 
 # Builds an unsaved fish, every attribute defaults to the same comfortable values
@@ -38,7 +37,7 @@ class FishPoolTestCase(unittest.TestCase):
 
     # replaces the fish database with the given fish for the rest of the test
     def use_pool(self, fish_list):
-        patcher = mock.patch('models.fishdao.load_all_fish', return_value=list(fish_list))
+        patcher = mock.patch('fishtank.simulation.fishdao.load_all_fish', return_value=list(fish_list))
         patcher.start()
         self.addCleanup(patcher.stop)
 

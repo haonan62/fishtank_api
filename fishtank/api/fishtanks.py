@@ -1,10 +1,10 @@
 from flask import Blueprint, g
 
-from api.common import ApiError, is_integer, json_body, login_required, reject_unknown_fields, success
-from models.database import database
-from models.fish import Fish
-from models.fish_error import FishError
-from models.fishtank_record import DEFAULT_SIZE, FishtankRecord
+from fishtank.api.common import ApiError, is_integer, json_body, login_required, reject_unknown_fields, success
+from fishtank.db import database
+from fishtank.models.fish import Fish
+from fishtank.simulation.errors import FishError
+from fishtank.models.fishtank_record import DEFAULT_SIZE, FishtankRecord
 
 blueprint = Blueprint('fishtanks', __name__)
 

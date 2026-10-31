@@ -5,11 +5,11 @@ import tempfile
 import unittest
 from unittest import mock
 
-import migrate_db
-from models.fish import Fish, FishPicture, DATABASE
+from fishtank import migrations
+from fishtank.models.fish import Fish, FishPicture, DATABASE
 
-# Tests for migrate_db.py and for the committed data/fish.db
-# Run from the project root: python -m unittest test_database -v
+# Tests for fishtank/migrations.py and for the committed data/fish.db
+# Run from the project root: python -m unittest tests.test_migrations -v
 
 # The fish table exactly as it was before version 1, keyed by scientific name
 LEGACY_SCHEMA = '''CREATE TABLE fish(
@@ -44,7 +44,7 @@ LEGACY_ROWS = [
      'Spawning', 'Hybrid', 'peaceful', 'aggressive to smaller', 'Middle levels'),
 ]
 
-COLUMNS = migrate_db.FISH_COLUMNS
+COLUMNS = migrations.FISH_COLUMNS
 
 
 def read_rows_by_name(path):
@@ -96,7 +96,7 @@ class MigrationTest(unittest.TestCase):
         connection.close()
 
     def test_every_value_is_preserved(self):
-        migrate_db.migrate(self.legacy_path, self.target_path)
+        migrations.migrate(self.legacy_path, self.target_path)
         migrated = read_rows_by_name(self.target_path)
         self.assertEqual(len(migrated), len(LEGACY_ROWS))
         for legacy_row in LEGACY_ROWS:
@@ -104,18 +104,18 @@ class MigrationTest(unittest.TestCase):
                 self.assertEqual(migrated[legacy_row[0]][1:], legacy_row)
 
     def test_ids_follow_scientific_name_order(self):
-        migrate_db.migrate(self.legacy_path, self.target_path)
+        migrations.migrate(self.legacy_path, self.target_path)
         migrated = read_rows_by_name(self.target_path)
         expected = {name: new_id for new_id, name in enumerate(sorted(row[0] for row in LEGACY_ROWS), start=1)}
         self.assertEqual({name: row[0] for name, row in migrated.items()}, expected)
 
     def test_reports_and_stores_latest_version(self):
         self.assertEqual(read_version(self.legacy_path), 0)
-        self.assertEqual(migrate_db.migrate(self.legacy_path, self.target_path), 3)
+        self.assertEqual(migrations.migrate(self.legacy_path, self.target_path), 3)
         self.assertEqual(read_version(self.target_path), 3)
 
     def test_scientific_names_stay_unique(self):
-        migrate_db.migrate(self.legacy_path, self.target_path)
+        migrations.migrate(self.legacy_path, self.target_path)
         connection = sqlite3.connect(self.target_path)
         self.addCleanup(connection.close)
         with self.assertRaises(sqlite3.IntegrityError) as raised:
@@ -123,7 +123,7 @@ class MigrationTest(unittest.TestCase):
         self.assertIn('UNIQUE', str(raised.exception))
 
     def test_id_of_a_removed_fish_is_never_reused(self):
-        migrate_db.migrate(self.legacy_path, self.target_path)
+        migrations.migrate(self.legacy_path, self.target_path)
         connection = sqlite3.connect(self.target_path)
         self.addCleanup(connection.close)
         connection.execute('DELETE FROM fish WHERE id = ?', (len(LEGACY_ROWS),))
@@ -132,21 +132,21 @@ class MigrationTest(unittest.TestCase):
 
     def test_id_removed_before_version_2_is_never_reused_after_it(self):
         version_1_path = self.target_path + '.v1'
-        with mock.patch.object(migrate_db, 'LATEST_VERSION', 1):
-            migrate_db.migrate(self.legacy_path, version_1_path)
+        with mock.patch.object(migrations, 'LATEST_VERSION', 1):
+            migrations.migrate(self.legacy_path, version_1_path)
         connection = sqlite3.connect(version_1_path)
         connection.execute('DELETE FROM fish WHERE id = ?', (len(LEGACY_ROWS),))
         connection.commit()
         connection.close()
 
-        migrate_db.migrate(version_1_path, self.target_path)
+        migrations.migrate(version_1_path, self.target_path)
         connection = sqlite3.connect(self.target_path)
         self.addCleanup(connection.close)
         cursor = insert_complete_fish(connection, ('Corydoras acrensis',) + LEGACY_ROWS[0][1:])
         self.assertEqual(cursor.lastrowid, len(LEGACY_ROWS) + 1)
 
     def test_version_2_makes_attributes_fishbase_lacks_optional(self):
-        migrate_db.migrate(self.legacy_path, self.target_path)
+        migrations.migrate(self.legacy_path, self.target_path)
         connection = sqlite3.connect(self.target_path)
         self.addCleanup(connection.close)
         connection.execute('''INSERT INTO fish (scientific_name, family_name, ph_min, ph_max, water_hardness_min,
@@ -162,7 +162,7 @@ class MigrationTest(unittest.TestCase):
                     insert_columns(connection, row)
 
     def test_version_2_records_the_source_of_existing_fish(self):
-        migrate_db.migrate(self.legacy_path, self.target_path)
+        migrations.migrate(self.legacy_path, self.target_path)
         connection = sqlite3.connect(self.target_path)
         self.addCleanup(connection.close)
         self.assertEqual(connection.execute('SELECT DISTINCT data_source, fishbase_spec_code FROM fish').fetchall(),
@@ -170,7 +170,7 @@ class MigrationTest(unittest.TestCase):
         self.assertEqual(connection.execute('SELECT count(*) FROM fish_picture').fetchone()[0], 0)
 
     def test_fishbase_species_code_and_picture_url_are_unique(self):
-        migrate_db.migrate(self.legacy_path, self.target_path)
+        migrations.migrate(self.legacy_path, self.target_path)
         connection = sqlite3.connect(self.target_path)
         self.addCleanup(connection.close)
         connection.execute('UPDATE fish SET fishbase_spec_code = 2001 WHERE id = 1')
@@ -182,20 +182,20 @@ class MigrationTest(unittest.TestCase):
             connection.execute(picture)
 
     def test_migrating_an_up_to_date_database_changes_nothing(self):
-        migrate_db.migrate(self.legacy_path, self.target_path)
+        migrations.migrate(self.legacy_path, self.target_path)
         again_path = self.target_path + '.again'
-        self.assertEqual(migrate_db.migrate(self.target_path, again_path), migrate_db.LATEST_VERSION)
+        self.assertEqual(migrations.migrate(self.target_path, again_path), migrations.LATEST_VERSION)
         self.assertEqual(read_rows_by_name(again_path), read_rows_by_name(self.target_path))
 
     def test_upgrade_in_place_runs_each_step_once(self):
         shutil.copyfile(self.legacy_path, self.target_path)
-        self.assertEqual(migrate_db.upgrade(self.target_path), migrate_db.LATEST_VERSION)
+        self.assertEqual(migrations.upgrade(self.target_path), migrations.LATEST_VERSION)
         before = read_bytes(self.target_path)
-        self.assertEqual(migrate_db.upgrade(self.target_path), migrate_db.LATEST_VERSION)
+        self.assertEqual(migrations.upgrade(self.target_path), migrations.LATEST_VERSION)
         self.assertEqual(read_bytes(self.target_path), before)
 
     def test_version_3_adds_users_and_fishtanks(self):
-        migrate_db.migrate(self.legacy_path, self.target_path)
+        migrations.migrate(self.legacy_path, self.target_path)
         connection = sqlite3.connect(self.target_path)
         self.addCleanup(connection.close)
         connection.execute('PRAGMA foreign_keys = ON')
@@ -220,7 +220,7 @@ class MigrationTest(unittest.TestCase):
 
     def test_source_is_never_changed(self):
         before = read_bytes(self.legacy_path)
-        migrate_db.migrate(self.legacy_path, self.target_path)
+        migrations.migrate(self.legacy_path, self.target_path)
         self.assertEqual(read_bytes(self.legacy_path), before)
 
     def test_refuses_to_overwrite_an_existing_file(self):
@@ -230,18 +230,18 @@ class MigrationTest(unittest.TestCase):
         for target in (self.target_path, self.legacy_path):
             with self.subTest(target=os.path.basename(target)):
                 with self.assertRaises(Exception):
-                    migrate_db.migrate(self.legacy_path, target)
+                    migrations.migrate(self.legacy_path, target)
         self.assertEqual(read_bytes(self.target_path), b'keep me')
         self.assertEqual(read_bytes(self.legacy_path), before)
 
     def test_failed_step_leaves_the_copy_at_its_previous_version(self):
         def failing_step(connection):
-            migrate_db.upgrade_to_version_1(connection)
+            migrations.upgrade_to_version_1(connection)
             raise RuntimeError('step failed')
 
-        with mock.patch.dict(migrate_db.UPGRADE_STEPS, {1: failing_step}):
+        with mock.patch.dict(migrations.UPGRADE_STEPS, {1: failing_step}):
             with self.assertRaises(RuntimeError):
-                migrate_db.migrate(self.legacy_path, self.target_path)
+                migrations.migrate(self.legacy_path, self.target_path)
         connection = sqlite3.connect(self.target_path)
         self.addCleanup(connection.close)
         self.assertEqual(connection.execute('PRAGMA user_version').fetchone()[0], 0)
@@ -253,7 +253,7 @@ class MigrationTest(unittest.TestCase):
 class CommittedDatabaseTest(unittest.TestCase):
 
     def test_is_at_latest_version(self):
-        self.assertEqual(read_version(DATABASE), migrate_db.LATEST_VERSION)
+        self.assertEqual(read_version(DATABASE), migrations.LATEST_VERSION)
 
     def read(self, sql):
         connection = sqlite3.connect(DATABASE)

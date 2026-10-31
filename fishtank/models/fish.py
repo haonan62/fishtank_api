@@ -1,6 +1,6 @@
 from peewee import *
-from models.database import BaseModel, SEED_DATABASE
-from models.fish_error import *
+from fishtank.db import BaseModel, SEED_DATABASE
+from fishtank.simulation.errors import *
 
 # the committed fish database
 DATABASE = SEED_DATABASE
