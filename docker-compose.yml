@@ -4,7 +4,8 @@ services:
     # replace username/repo:tag with your name and image details
     image: haonan62/fishtank:api
     deploy:
-      replicas: 5
+      # users and fishtanks live in one sqlite file, replicas would each have their own
+      replicas: 1
       resources:
         limits:
           cpus: "0.1"
@@ -13,7 +14,11 @@ services:
         condition: on-failure
     ports:
       - "80:5000"
+    volumes:
+      - fishtank-data:/app/instance
     networks:
       - webnet
 networks:
   webnet:
+volumes:
+  fishtank-data:

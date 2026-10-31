@@ -1,5 +1,6 @@
 from models.fish import Fish
 from models.fishdao import Fishdao
+from models.fish_error import fish_not_in_fishtank_error
 import itertools
 import copy
 # The default size of the fishtank is length:10, width:10, heigth:10
@@ -41,12 +42,6 @@ class Fishtank:
 
     def __str__(self):
         return str({"Size": str(self.size), "Fish": str(self.fish_map), "Status": self.status})
-
-    # the api identifies fish by id, so the fish map is reported with ids instead of scientific names
-    def get_total_status_for_api(self):
-        all_fish = Fishdao().all_fish
-        fish_map_by_id = {all_fish[key].id: value for key, value in self.fish_map.items()}
-        return {"Size": str(self.size), "Fish": str(fish_map_by_id), "Status": self.status}
 
     # DANGEROUS! This method adds fish to the fishtank without checking any conditions
     # Only for developement purposes.
@@ -125,8 +120,8 @@ class Fishtank:
                     self.fish_map.pop(another_fish.scientific_name)
 
             elif another_fish.scientific_name not in self.fish_map:
-                raise Exception(another_fish.scientific_name +
-                                ': No such fish in the fishtank')
+                raise fish_not_in_fishtank_error(another_fish.scientific_name +
+                                                 ': No such fish in the fishtank')
         else:
             raise Exception('The object is not fish')
 

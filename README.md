@@ -24,14 +24,14 @@ Run git clone <https://github.com/haonan62/fishtank_api.git>
 ### Prerequisites
 
 ```
-Python version 3.6.8
-Python packages: flask, peewee
+Python version 3.11 or newer
+Python packages: see requirements.txt (flask, peewee, gunicorn)
 ```
 
 ### Installing
 
 ```
-Activate virtual environment, run pip install peewee flask
+Activate virtual environment, run pip install -r requirements.txt
 ```
 
 ```
@@ -39,7 +39,19 @@ To run the app, enter "python app.py"
 ```
 
 ```
-To run the tests, enter "python -m unittest test_fishtank test_database test_api test_import -v"
+To run the tests, enter "python -m unittest test_fishtank test_database test_api test_accounts test_import -v"
+```
+
+```
+The app never writes to data/fish.db, it works on its own database: FISHTANK_DATABASE when set, instance/fishtank.db otherwise
+The first time the app starts it copies data/fish.db there, every start after brings it to the latest schema
+Users, fishtanks and fish changed by admins live only in the app's database, which is not committed
+Fish added to data/fish.db later only reach an app database that is created after
+```
+
+```
+To make the first admin, enter "flask --app app create-admin <username>" and type a password
+Admins can then promote other users through the api, or enter "flask --app app set-role <username> admin"
 ```
 
 ```
@@ -57,72 +69,114 @@ run pip install pyarrow (only needed for the import), then enter
 
 ## Important APIs and their functionalities
 
+Every answer is json with a "status" of "success" or "error", an error comes with a "message" and an http status:
+400 for a bad request, 401 when a login is needed or the token is wrong, 403 for something only admins may do,
+404 when the fish or fishtank does not exist (or belongs to someone else), 409 for a conflict,
+422 when the fish cannot live together (the alarm), the fishtank is then unchanged
+
+### Users and roles
+
 ```
-GET
-ip:5000/fishtank_api/get_fish_by_group
-Sorting fish based on their families
-Every fish carries its id, its data_source (aqua-fish.net or FishBase 25.04), a fishbase_url to its FishBase page
-when known, and its pictures: hosted urls with author, licence, credit and source page, the pictures are not stored here
+visitor  no account needed, can look at fish and create and simulate fishtanks, which are removed after a day without changes
+user     registered, everything a visitor can do, and their fishtanks are saved until they remove them
+admin    everything a user can do, and adds, changes and removes fish, and changes the role of users
+```
+
+A user logs in once and sends the token with every request, in the header `Authorization: Bearer <token>`
+A token lasts 30 days, a request with a wrong or expired token is refused, it is not treated as a visitor's
+
+```
+POST ip:5000/fishtank_api/auth/register   {"username": ..., "password": ...}
+     username: 3 to 32 letters, digits, dots, dashes or underscores, unique ignoring case; password: 8 to 128 characters
+     everyone registers as a user, the answer carries "user", "token" and "expires_at"
+POST ip:5000/fishtank_api/auth/login      {"username": ..., "password": ...}, answers like register
+POST ip:5000/fishtank_api/auth/logout     ends the login of this token only
+GET  ip:5000/fishtank_api/auth/me         the logged in user
+```
+
+### Fish
+
+```
+GET ip:5000/fishtank_api/fish                   every fish, by id
+GET ip:5000/fishtank_api/fish?group_by=family   every fish, sorted into their families ("fish_by_family")
+GET ip:5000/fishtank_api/fish/<id>              one fish
+Every fish carries its id, its data_source (aqua-fish.net, FishBase 25.04, or manual entry for fish added by an admin),
+a fishbase_url to its FishBase page when known, and its pictures: hosted urls with author, licence, credit and source page,
+the pictures are not stored here
 Fish from FishBase have an "unknown" temperament and no size, origin, reproduce method or fishtank position yet,
 until their temperament is known they can only be kept alone, one fish in a fishtank
 ```
 
+Admins only:
+
 ```
-GET
-ip:5000/fishtank_api/initialize_new_fishtank
-Create new fishtank with a special identifier(hash of the current timestamp)
+POST   ip:5000/fishtank_api/fish        adds a fish, with the fields of a fish as GET returns them (not id, fishbase_url or pictures)
+       required: scientific_name, family_name, minimum/maximum_ph, minimum/maximum_water_hardness,
+       minimum/maximum_temperature, in_species_temperament, cross_species_temperament
+       optional: common_name, minimum/maximum_size, reproduce_method, origin, fishtank_position, fishbase_spec_code,
+       data_source (manual entry when left out)
+       a minimum always comes with its maximum and is not larger, ph lies between 0 and 14, temperature between 0 and 45
+       a fish whose cross_species_temperament is known needs a size
+       in_species_temperament: peaceful, peaceful to males, peaceful to females, aggressive/territorial, unknown
+       cross_species_temperament: peaceful, aggressive/territorial, aggressive to smaller, unknown
+PATCH  ip:5000/fishtank_api/fish/<id>   changes only the fields that are sent, the rules above hold for the whole fish after it
+       fishtanks keep the fish, even when it no longer fits in with the others
+DELETE ip:5000/fishtank_api/fish/<id>   removes the fish and its pictures, refused (409) while the fish lives in a fishtank
+```
+
+### Fishtanks
+
+A fishtank is identified by its key, a random text that cannot be guessed
+A visitor's fishtank can be used by whoever knows its key, a user's fishtank only by that user
+
+```
+POST   ip:5000/fishtank_api/fishtanks                creates a fishtank, optional body {"name": ..., "size": {"length", "width", "height"}}
+                                                     size defaults to 100 x 100 x 30, saved when a user is logged in
+GET    ip:5000/fishtank_api/fishtanks                the saved fishtanks of the logged in user, latest change first
+GET    ip:5000/fishtank_api/fishtanks/<key>          one fishtank
+PATCH  ip:5000/fishtank_api/fishtanks/<key>          {"name": ..., "size": ...}, changes the name or size
+DELETE ip:5000/fishtank_api/fishtanks/<key>          removes the fishtank
+POST   ip:5000/fishtank_api/fishtanks/<key>/save     a logged in user saves a visitor's fishtank, e.g. one built before logging in
+```
+
+A fishtank is answered as:
+
+```
+{"key": ..., "name": ..., "size": {"length": 100, "width": 100, "height": 30}, "saved": true,
+ "fish": [{"id": 11, "scientific_name": ..., "common_name": ..., "count": 2}],
+ "created_at": ..., "updated_at": ..., "expires_at": null for a saved fishtank}
 ```
 
 ```
-POST
-ip:5000/fishtank_api/remove_fish_tank
-Remove a fishtank with its special identifier on the server
-form data: urlencoded
-key: fishtank_key value:identifier of the fishtank
-```
+POST ip:5000/fishtank_api/fishtanks/<key>/add      {"fish": list of fish ids}
+POST ip:5000/fishtank_api/fishtanks/<key>/remove   {"fish": list of fish ids}
+This carries the main logic. It adds or removes a group of fish with conditional checking, the same id twice means two fish
+The fishtank only changes when every fish in the list can be added or removed
+example: {"fish": [11, 22]}
 
-```
-GET
-ip:5000/fishtank_api/get_all_fishtank_keys
-Retrieve all unique identifiers of the key(This is only for developement purposes)
-```
-
-```
-POST
-ip:5000/fishtank_api/fishtank_operation
-This method carries the main logic. It can either add or remove a group of fish from the fishtank with conditional checking.
-Fish are identified by their id, which get_fish_by_group returns with every fish. The fish in a fishtank are reported as {id: number of fish}
-1(add fish):
-url parameters: ip:5000/fishtank_api/fishtank_operation?action=add
-form data is in json
-format: {"fishtank_no": unique identifier, "fish":list of fish ids}
-example: {"fishtank_no":"accabf084fcbe29002ec6965aeed035a7df90b3559ee60802e9c09f83398dbce","fish":[11,22]}
-
-sample output:
+sample output (422):
 {
-    "message": [
-        "Cross species competition exists between Acestrorhynchus altus and Alestopetersius caudalis, Acestrorhynchus altus with size 24 may attack Alestopetersius caudalis with size 5"
-    ],
+    "message": "Cross species competition exists between Acestrorhynchus altus and Alestopetersius caudalis, Acestrorhynchus altus with size 24 may attack Alestopetersius caudalis with size 5",
     "status": "error"
 }
+```
 
-2(remove fish):
-url parameters: ip:5000/fishtank_api/fishtank_operation?action=remove
-form data is in json
-format: {"fishtank_no": unique identifier, "fish":list of fish ids}
-example: {"fishtank_no":"accabf084fcbe29002ec6965aeed035a7df90b3559ee60802e9c09f83398dbce","fish":[11,22]}
+### Users (admins only)
+
+```
+GET   ip:5000/fishtank_api/users        every user
+PATCH ip:5000/fishtank_api/users/<id>   {"role": "user" or "admin"}, the last admin cannot become a user
 ```
 
 ## Functions to add
 Given a fish or a group of fish, determine the maximum fish species that the fishtank can hold(requires background in optimization), target method: maximize_diversity_given_fish in [fishtank.py](./models/fishtank.py)    
-Session support(creation and expiry)  
-user module?(complicated)  
 fuzzy search(difficult, might make more sense to put into frontend)
 
 
 ## Deployment
 
-Please use gunicorn and nginx to serve the production app. If you want configuration files for both, please approach the authors. But googling will be fine, there are plenty of online tutorials.
+Please use gunicorn and nginx to serve the production app, e.g. gunicorn -b 0.0.0.0:5000 "app:create_app()".
+The app keeps its data in one sqlite file, so run a single instance and keep the file (FISHTANK_DATABASE) on a persistent volume. If you want configuration files for both, please approach the authors. But googling will be fine, there are plenty of online tutorials.
 There is also a separate branch for docker deployment, please refer to the branches or approach authors for deployment details.
 
 ## Built With

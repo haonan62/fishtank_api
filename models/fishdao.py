@@ -1,6 +1,12 @@
 from models.fish import Fish
 import copy
-all_fish_list = Fish.select()
+
+
+# A fresh query every time, admins add, change and remove fish while the app runs
+# (iterating one peewee query twice would return the rows of the first time)
+def load_all_fish():
+    return list(Fish.select())
+
 # The scientific name is the key for the all_fish map due to their uniqueness
 
 
@@ -9,7 +15,7 @@ class Fishdao:
     def __init__(self, all_fish=None):
         to_set = {}
         to_set_by_id = {}
-        for fish in all_fish_list:
+        for fish in load_all_fish():
             scientific_name = fish.scientific_name
             to_set[scientific_name] = fish
             to_set_by_id[fish.id] = fish

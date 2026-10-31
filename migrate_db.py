@@ -8,7 +8,7 @@ import sys
 # so migrating an up to date database just copies it
 # Usage: python migrate_db.py data/fish.db data/fish_migrated.db
 
-LATEST_VERSION = 2
+LATEST_VERSION = 3
 
 FISH_COLUMNS = ['scientific_name', 'common_name', 'family_name', 'size_min', 'size_max', 'ph_min', 'ph_max',
                 'water_hardness_min', 'water_hardness_max', 'temperature_min', 'temperature_max', 'reproduce_method',
@@ -92,7 +92,51 @@ def upgrade_to_version_2(connection):
     connection.execute('CREATE INDEX fish_picture_fish_id ON fish_picture(fish_id)')
 
 
-UPGRADE_STEPS = {1: upgrade_to_version_1, 2: upgrade_to_version_2}
+# Version 3: users, their login tokens and fishtanks
+# A user is either a 'user' or an 'admin', usernames are unique ignoring case
+# Only a hash of each login token is stored, a leaked database does not let anyone log in
+# A fishtank without owner belongs to a visitor and expires, a fishtank with an owner is kept until it is removed
+# The fish in a fishtank are kept by fish id, so a renamed species stays in the tanks it lives in,
+# a fish cannot be removed from the database while it lives in a fishtank
+def upgrade_to_version_3(connection):
+    connection.execute('''CREATE TABLE user(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username char(32) not null unique collate nocase,
+    password_hash text not null,
+    role char(10) not null check (role in ('user', 'admin')),
+    created_at datetime not null
+)''')
+    connection.execute('''CREATE TABLE auth_token(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id int not null references user(id) on delete cascade,
+    token_hash char(64) not null unique,
+    created_at datetime not null,
+    expires_at datetime not null
+)''')
+    connection.execute('CREATE INDEX auth_token_user_id ON auth_token(user_id)')
+    connection.execute('''CREATE TABLE fishtank(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    key char(64) not null unique,
+    owner_id int references user(id) on delete cascade,
+    name char(100),
+    length int not null,
+    width int not null,
+    height int not null,
+    created_at datetime not null,
+    updated_at datetime not null,
+    expires_at datetime
+)''')
+    connection.execute('CREATE INDEX fishtank_owner_id ON fishtank(owner_id)')
+    connection.execute('''CREATE TABLE fishtank_fish(
+    fishtank_id int not null references fishtank(id) on delete cascade,
+    fish_id int not null references fish(id),
+    count int not null check (count > 0),
+    PRIMARY KEY (fishtank_id, fish_id)
+)''')
+    connection.execute('CREATE INDEX fishtank_fish_fish_id ON fishtank_fish(fish_id)')
+
+
+UPGRADE_STEPS = {1: upgrade_to_version_1, 2: upgrade_to_version_2, 3: upgrade_to_version_3}
 
 
 def migrate(source_path, target_path):
@@ -102,8 +146,13 @@ def migrate(source_path, target_path):
         raise Exception('{} already exists, please choose a new target'.format(target_path))
 
     shutil.copyfile(source_path, target_path)
+    return upgrade(target_path)
+
+
+# Upgrades a database in place, the app uses this for its own database, which is a copy of data/fish.db
+def upgrade(path):
     # transactions are opened explicitly, so table changes are part of them as well
-    connection = sqlite3.connect(target_path, isolation_level=None)
+    connection = sqlite3.connect(path, isolation_level=None)
     try:
         version = connection.execute('PRAGMA user_version').fetchone()[0]
         for next_version in range(version + 1, LATEST_VERSION + 1):

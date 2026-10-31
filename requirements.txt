@@ -1,3 +1,3 @@
-Flask
-peewee
-gunicorn
+Flask==3.1.3
+peewee==4.5.3
+gunicorn==26.2.0

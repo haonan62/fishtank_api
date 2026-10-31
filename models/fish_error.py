@@ -29,3 +29,8 @@ class in_species_competition_error(FishError):
 class cross_species_competition_error(FishError):
     """Raised when fish from the difference species cannot live together"""
     pass
+
+
+class fish_not_in_fishtank_error(FishError):
+    """Raised when a fish to be removed is not in the fishtank"""
+    pass

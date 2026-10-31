@@ -111,8 +111,8 @@ class MigrationTest(unittest.TestCase):
 
     def test_reports_and_stores_latest_version(self):
         self.assertEqual(read_version(self.legacy_path), 0)
-        self.assertEqual(migrate_db.migrate(self.legacy_path, self.target_path), 2)
-        self.assertEqual(read_version(self.target_path), 2)
+        self.assertEqual(migrate_db.migrate(self.legacy_path, self.target_path), 3)
+        self.assertEqual(read_version(self.target_path), 3)
 
     def test_scientific_names_stay_unique(self):
         migrate_db.migrate(self.legacy_path, self.target_path)
@@ -184,8 +184,39 @@ class MigrationTest(unittest.TestCase):
     def test_migrating_an_up_to_date_database_changes_nothing(self):
         migrate_db.migrate(self.legacy_path, self.target_path)
         again_path = self.target_path + '.again'
-        self.assertEqual(migrate_db.migrate(self.target_path, again_path), 2)
+        self.assertEqual(migrate_db.migrate(self.target_path, again_path), migrate_db.LATEST_VERSION)
         self.assertEqual(read_rows_by_name(again_path), read_rows_by_name(self.target_path))
+
+    def test_upgrade_in_place_runs_each_step_once(self):
+        shutil.copyfile(self.legacy_path, self.target_path)
+        self.assertEqual(migrate_db.upgrade(self.target_path), migrate_db.LATEST_VERSION)
+        before = read_bytes(self.target_path)
+        self.assertEqual(migrate_db.upgrade(self.target_path), migrate_db.LATEST_VERSION)
+        self.assertEqual(read_bytes(self.target_path), before)
+
+    def test_version_3_adds_users_and_fishtanks(self):
+        migrate_db.migrate(self.legacy_path, self.target_path)
+        connection = sqlite3.connect(self.target_path)
+        self.addCleanup(connection.close)
+        connection.execute('PRAGMA foreign_keys = ON')
+        user = "INSERT INTO user (username, password_hash, role, created_at) VALUES (?, 'hash', ?, '2026-01-01')"
+        connection.execute(user, ('alice', 'user'))
+        with self.assertRaises(sqlite3.IntegrityError):
+            connection.execute(user, ('ALICE', 'user'))
+        with self.assertRaises(sqlite3.IntegrityError):
+            connection.execute(user, ('bob', 'owner'))
+        connection.execute("INSERT INTO fishtank (key, owner_id, length, width, height, created_at, updated_at) VALUES ('k', 1, 1, 1, 1, '2026-01-01', '2026-01-01')")
+        connection.execute('INSERT INTO fishtank_fish (fishtank_id, fish_id, count) VALUES (1, 1, 2)')
+        with self.assertRaises(sqlite3.IntegrityError):
+            connection.execute('INSERT INTO fishtank_fish (fishtank_id, fish_id, count) VALUES (1, 2, 0)')
+        with self.assertRaises(sqlite3.IntegrityError):
+            connection.execute('INSERT INTO fishtank_fish (fishtank_id, fish_id, count) VALUES (1, 999, 1)')
+        # a fish living in a fishtank cannot be removed
+        with self.assertRaises(sqlite3.IntegrityError):
+            connection.execute('DELETE FROM fish WHERE id = 1')
+        # removing a user removes their fishtanks and the fish in them
+        connection.execute('DELETE FROM user')
+        self.assertEqual(connection.execute('SELECT count(*) FROM fishtank_fish').fetchone(), (0,))
 
     def test_source_is_never_changed(self):
         before = read_bytes(self.legacy_path)
