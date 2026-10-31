@@ -32,6 +32,8 @@ npm run dev
 ```
 
 `npm run dev` serves the ui on http://localhost:5173 and forwards api calls to the Flask app on port 5000, so run both.
+The login cookie is marked Secure, which Chrome and Firefox accept on http://localhost. If your browser does not keep
+you logged in over plain http, start Flask with `FISHTANK_SECURE_COOKIES=0`.
 `npm test` runs the ui's unit tests, `npm run build` type checks and writes `frontend/dist/`, which Flask then serves itself.
 
 The app creates its own database at `instance/fishtank.db` (or `FISHTANK_DATABASE`) on first start.
@@ -43,20 +45,22 @@ To try the admin endpoints locally, run `flask --app fishtank create-admin <user
 ```
 fishtank/                 the app, one python package
   __init__.py             create_app(), loads the app only when one is made
-  app.py                  the Flask app factory: blueprints, errors, the database, gzip and serving the built ui
+  app.py                  the Flask app factory: blueprints, errors, the database, security headers, gzip, the built ui
   cli.py                  flask commands: create-admin, set-role
   db.py                   the peewee database, BaseModel, time helpers, setting up the app's database
   migrations.py           versioned schema upgrades (sqlite user_version), python -m fishtank.migrations
   fishbase_import.py      imports a FishBase release into a copy of the database
   api/                    http layer, one Flask blueprint per resource
-    common.py             ApiError, json helpers, login_required / admin_required, the current user
-    auth.py               /auth: register, login, logout, me
+    common.py             ApiError, json helpers, login_required / admin_required, the current user,
+                          session cookies and csrf, check_rate_limit
+    auth.py               /auth: register, login, logout, me, password change, removing the account
     fish.py               /fish: listing for everyone, create / change / remove for admins
     fishtanks.py          /fishtanks: create, simulate (add / remove fish), save
     users.py              /users: admins list users and change roles
   models/                 database tables (peewee models)
     fish.py               Fish and FishPicture, including the compatibility rules between two fish
     user.py               User and AuthToken
+    rate_limit.py         RateLimit, attempts counted in the database, and the limits of the app
     fishtank_record.py    a stored fishtank and the fish in it
   simulation/             the fishtank logic, no http or storage concerns
     fishtank.py           Fishtank: adding / removing fish with checks, the maximum diversity search
@@ -64,10 +68,11 @@ fishtank/                 the app, one python package
     errors.py             the errors raised when fish cannot live together
 tests/                    unittest tests, run with python -m unittest
   api_test_case.py        base class for http tests, each test gets its own copy of the database
+  test_security.py        session cookies and csrf, rate limits, password change, account removal, security headers
 scripts/                  one-off scripts that are not part of the app
 frontend/                 the web ui
   src/api/                the api client and the shapes of its answers, the only place that calls fetch
-  src/auth/               who is logged in, the login token
+  src/auth/               who is logged in, logging in and out, changing the password, removing the account
   src/lib/                logic without ui: fish wording, water ranges, the catalogue, visitor tanks
   src/components/         shared pieces: aquarium, fish detail, filters, dialogs, buttons
   src/pages/              one file per page, admin/ holds the admin portal
@@ -86,6 +91,9 @@ and tested without a web server.
 - **A new endpoint**: add a route to the blueprint of its resource in `fishtank/api/`, or a new module with its
   own `blueprint` that you register in `create_app`. Raise `ApiError(message, status_code)` for errors, return
   `success(...)` otherwise. Add tests under `tests/` built on `ApiTestCase`.
+  The ui logs in with a cookie, so every request that changes something must come from `frontend/src/api/client.ts`,
+  which adds the csrf token. Something anyone can do over and over without logging in (like creating a visitor's
+  fishtank) gets a `RateLimit` in `fishtank/models/rate_limit.py`, checked with `check_rate_limit`.
 - **A schema change**: never edit an existing upgrade step. Add `upgrade_to_version_N` to `fishtank/migrations.py`,
   register it in `UPGRADE_STEPS`, bump `LATEST_VERSION`, update the matching peewee model, and test the step in
   `tests/test_migrations.py`. Then upgrade the committed database and replace it:

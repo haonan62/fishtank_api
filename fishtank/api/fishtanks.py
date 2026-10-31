@@ -1,8 +1,10 @@
 from flask import Blueprint, g
 
-from fishtank.api.common import ApiError, is_integer, json_body, login_required, reject_unknown_fields, success
+from fishtank.api.common import (ApiError, check_rate_limit, client_ip, is_integer, json_body, login_required,
+                                 reject_unknown_fields, success)
 from fishtank.db import database
 from fishtank.models.fish import Fish
+from fishtank.models.rate_limit import VISITOR_TANKS_PER_IP
 from fishtank.simulation.errors import FishError
 from fishtank.models.fishtank_record import DEFAULT_SIZE, FishtankRecord
 from fishtank.simulation.fishdao import Fishdao
@@ -46,6 +48,10 @@ def create_fishtank():
     reject_unknown_fields(payload, {'name', 'size'})
     name = read_name(payload) if 'name' in payload else None
     size = read_size(payload) if 'size' in payload else DEFAULT_SIZE
+    if g.user is None:
+        check_rate_limit(VISITOR_TANKS_PER_IP, client_ip(), 'You have built a lot of tanks in a short time, '
+                                                            'please try again in {} or log in to build more')
+        VISITOR_TANKS_PER_IP.hit(client_ip())
     FishtankRecord.remove_expired()
     record = FishtankRecord.create_for(g.user, name=name, size=size)
     return success(201, fishtank=record.to_dic())

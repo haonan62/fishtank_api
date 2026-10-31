@@ -218,6 +218,16 @@ class MigrationTest(unittest.TestCase):
         connection.execute('DELETE FROM user')
         self.assertEqual(connection.execute('SELECT count(*) FROM fishtank_fish').fetchone(), (0,))
 
+    def test_version_5_adds_rate_limit_hits(self):
+        migrations.migrate(self.legacy_path, self.target_path)
+        connection = sqlite3.connect(self.target_path)
+        self.addCleanup(connection.close)
+        connection.execute("INSERT INTO rate_limit_hit (bucket, key, created_at) VALUES ('login', 'alice', '2026-01-01')")
+        with self.assertRaises(sqlite3.IntegrityError):
+            connection.execute("INSERT INTO rate_limit_hit (bucket, created_at) VALUES ('login', '2026-01-01')")
+        indexes = [row[1] for row in connection.execute("PRAGMA index_list('rate_limit_hit')")]
+        self.assertIn('rate_limit_hit_bucket_key', indexes)
+
     def test_source_is_never_changed(self):
         before = read_bytes(self.legacy_path)
         migrations.migrate(self.legacy_path, self.target_path)

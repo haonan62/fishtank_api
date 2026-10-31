@@ -8,7 +8,7 @@ import sys
 # so migrating an up to date database just copies it
 # Usage: python -m fishtank.migrations data/fish.db data/fish_migrated.db
 
-LATEST_VERSION = 4
+LATEST_VERSION = 5
 
 FISH_COLUMNS = ['scientific_name', 'common_name', 'family_name', 'size_min', 'size_max', 'ph_min', 'ph_max',
                 'water_hardness_min', 'water_hardness_max', 'temperature_min', 'temperature_max', 'reproduce_method',
@@ -142,7 +142,21 @@ def upgrade_to_version_4(connection):
     connection.execute('ALTER TABLE fish ADD COLUMN retired_at datetime')
 
 
-UPGRADE_STEPS = {1: upgrade_to_version_1, 2: upgrade_to_version_2, 3: upgrade_to_version_3, 4: upgrade_to_version_4}
+# Version 5: rate limits, every counted attempt (a failed login, a visitor's new fishtank...) is one row,
+# kept in the database so every worker process of the app sees the same counts
+# bucket names what is limited, key who it is limited for (an ip address or a username)
+def upgrade_to_version_5(connection):
+    connection.execute('''CREATE TABLE rate_limit_hit(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    bucket char(32) not null,
+    key char(100) not null,
+    created_at datetime not null
+)''')
+    connection.execute('CREATE INDEX rate_limit_hit_bucket_key ON rate_limit_hit(bucket, key, created_at)')
+
+
+UPGRADE_STEPS = {1: upgrade_to_version_1, 2: upgrade_to_version_2, 3: upgrade_to_version_3, 4: upgrade_to_version_4,
+                 5: upgrade_to_version_5}
 
 
 def migrate(source_path, target_path):

@@ -21,6 +21,15 @@ def change_role(user, role):
         user.save()
 
 
+# removes a user, their login tokens and fishtanks go with them (on delete cascade),
+# there is always at least one admin left
+def delete_user(user):
+    with database.atomic('IMMEDIATE'):
+        if user.role == ROLE_ADMIN and User.select().where(User.role == ROLE_ADMIN).count() <= 1:
+            raise LastAdminError('{} is the last admin'.format(user.username))
+        User.delete().where(User.id == user.id).execute()
+
+
 @blueprint.route('/users')
 @admin_required
 def list_users():
