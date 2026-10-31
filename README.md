@@ -174,7 +174,16 @@ DELETE ip:5000/fishtank_api/fishtanks/<key>          removes the fishtank
 POST   ip:5000/fishtank_api/fishtanks/<key>/save     a logged in user saves a visitor's fishtank, e.g. one built before logging in
 GET    ip:5000/fishtank_api/fishtanks/<key>/compatible   which fish could join now: {"compatible": [ids], "incompatible": [{"id", "reason"}]},
                                                      the same check as adding them, retired fish are left out
+GET    ip:5000/fishtank_api/fishtanks/<key>/suggestions   companions that can all join together, best first:
+                                                     {"suggestions": [ids], "group_size": ..., "complete": true}, ?limit= 1 to 50
 ```
+
+Suggestions come from the maximum diversity search (`Fishtank.find_largest_group`), one fish per species, best first:
+fish with a picture and a common name, then fish whose water ranges cover most of the water the tank's fish share
+(for an empty tank, fish that take the widest ranges). `limit` is 1 to 50, 12 by default, `group_size` is the size of the
+whole group. Any part of the group can be added in one request, in any order, until the fishtank changes. Retired fish
+are left out. The search over the whole catalogue takes a second or two, it stops after 4 seconds and answers the
+largest group found so far with `"complete": false`, that group still gets along, a larger one may exist.
 
 A fishtank is answered as:
 

@@ -1,14 +1,14 @@
 import { useDraggable, useDroppable } from '@dnd-kit/core'
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 
-import type { Fish, Fishtank, TankSize } from '../api/types'
+import type { Fish, Fishtank, Suggestions, TankSize } from '../api/types'
 import { alarmTitle, displayName, formatRange, waterConditions } from '../lib/fish'
 import { timeLeft } from '../lib/time'
 import { tankTitle } from '../lib/useMyTanks'
 import { FishArt } from './FishArt'
 import { TemperamentBadge } from './FishBadges'
 import { EMPTY_FILTER, FishFilters, filterFish, type FishFilter } from './FishFilters'
-import { Badge, Button, Modal, RangeBar, TextField, inputClasses } from './ui'
+import { Badge, Button, Modal, RangeBar, Spinner, TextField, inputClasses } from './ui'
 
 const PICKER_PAGE = 60
 
@@ -305,6 +305,122 @@ export function WaterPanel({ residents }: { residents: Resident[] }) {
             <Condition label="pH" icon="⚗" value={formatRange(water.ph, '', 1)} low={water.ph.min} high={water.ph.max} scale={[4, 10]} />
             <Condition label="Hardness" icon="◈" value={formatRange(water.hardness, ' dGH')} low={water.hardness.min} high={water.hardness.max} scale={[0, 40]} />
           </div>
+        </>
+      )}
+    </section>
+  )
+}
+
+// --- the companions that can all join together ---
+
+function CompanionRow({ fish, busy, onAdd, onOpen }: { fish: Fish; busy: boolean; onAdd: (fish: Fish) => void; onOpen: (fish: Fish) => void }) {
+  return (
+    <li className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-surface-2">
+      <button type="button" onClick={() => onOpen(fish)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+        <span className="flex h-10 w-14 shrink-0 items-center justify-center rounded-lg bg-surface-2">
+          <FishArt fish={fish} className="w-11" />
+        </span>
+        <span className="min-w-0">
+          <span className="block truncate text-sm font-medium">{displayName(fish)}</span>
+          <span className="block truncate text-xs text-muted">
+            {fish.minimum_temperature}–{fish.maximum_temperature} °C · pH {fish.minimum_ph}–{fish.maximum_ph}
+          </span>
+        </span>
+      </button>
+      <button
+        type="button"
+        onClick={() => onAdd(fish)}
+        disabled={busy}
+        title={`Add one ${displayName(fish)}`}
+        aria-label={`Add one ${displayName(fish)}`}
+        className="flex size-8 shrink-0 items-center justify-center rounded-full border border-line text-lg leading-none text-brand hover:border-brand hover:bg-brand-soft disabled:cursor-not-allowed disabled:text-muted disabled:hover:border-line disabled:hover:bg-transparent"
+      >
+        +
+      </button>
+    </li>
+  )
+}
+
+export function CompanionPanel({
+  suggestions,
+  byId,
+  checking,
+  busy,
+  expanded,
+  onExpand,
+  onAdd,
+  onAddAll,
+  onOpen,
+}: {
+  suggestions: Suggestions | null
+  byId: Map<number, Fish>
+  checking: boolean
+  busy: boolean
+  // a few suggestions, or as many as the api answers
+  expanded: boolean
+  onExpand: (expanded: boolean) => void
+  onAdd: (fish: Fish) => void
+  onAddAll: (fish: Fish[]) => void
+  onOpen: (fish: Fish) => void
+}) {
+  const shown = (suggestions?.suggestions ?? []).flatMap((id) => {
+    const fish = byId.get(id)
+    return fish ? [fish] : []
+  })
+  const groupSize = suggestions?.group_size ?? 0
+  // an answer for a tank that has changed since may no longer hold, it is not added from
+  const disabled = busy || checking
+
+  return (
+    <section className="rounded-2xl border border-line bg-surface p-5">
+      <div className="mb-1 flex items-baseline justify-between gap-3">
+        <h2 className="font-display text-lg">Suggested companions</h2>
+        {checking && (
+          <span className="flex items-center gap-1.5 text-xs text-muted" role="status">
+            <Spinner small /> finding…
+          </span>
+        )}
+      </div>
+      {suggestions === null ? (
+        <p className="py-4 text-sm text-muted">{checking ? 'Looking for the largest group that gets along…' : 'No suggestions right now.'}</p>
+      ) : groupSize === 0 ? (
+        <p className="py-4 text-sm text-muted">No new species can live with everyone in this tank.</p>
+      ) : (
+        <>
+          <p className="mb-3 text-sm text-muted">
+            {groupSize.toLocaleString()} new {groupSize === 1 ? 'species gets' : 'species get'} along with the tank and each other. Add any of
+            them, in any order.
+          </p>
+          <ul className={`-mx-2 space-y-0.5 transition-opacity ${checking ? 'opacity-60' : ''}`}>
+            {shown.map((fish) => (
+              <CompanionRow key={fish.id} fish={fish} busy={disabled} onAdd={onAdd} onOpen={onOpen} />
+            ))}
+          </ul>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {shown.length > 1 && (
+              <Button size="sm" onClick={() => onAddAll(shown)} disabled={disabled}>
+                Add all {shown.length}
+              </Button>
+            )}
+            {groupSize > shown.length && !expanded && (
+              <Button variant="ghost" size="sm" onClick={() => onExpand(true)}>
+                See more
+              </Button>
+            )}
+            {expanded && (
+              <Button variant="ghost" size="sm" onClick={() => onExpand(false)}>
+                See fewer
+              </Button>
+            )}
+            {groupSize > shown.length && (
+              <span className="ml-auto text-xs text-muted">
+                {shown.length} of {groupSize.toLocaleString()}
+              </span>
+            )}
+          </div>
+          {!suggestions.complete && (
+            <p className="mt-3 text-xs text-muted">The search stopped early, a larger group may exist.</p>
+          )}
         </>
       )}
     </section>

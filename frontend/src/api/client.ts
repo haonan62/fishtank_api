@@ -5,6 +5,7 @@ import type {
   Fishtank,
   LoginAnswer,
   Role,
+  Suggestions,
   TankSize,
   User,
 } from './types'
@@ -158,6 +159,8 @@ export const api = {
     ),
   compatible: (key: string) =>
     request<Compatibility>('GET', `/fishtanks/${encodeURIComponent(key)}/compatible`),
+  suggestions: (key: string, limit: number) =>
+    request<Suggestions>('GET', `/fishtanks/${encodeURIComponent(key)}/suggestions?limit=${limit}`),
 
   listUsers: () => request<{ users: User[] }>('GET', '/users').then((answer) => answer.users),
   setRole: (id: number, role: Role) =>

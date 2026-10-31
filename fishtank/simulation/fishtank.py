@@ -1,8 +1,14 @@
-from fishtank.models.fish import Fish
+from collections import namedtuple
+from fishtank.models.fish import UNKNOWN_TEMPERAMENT, Fish
 from fishtank.simulation.fishdao import Fishdao
 from fishtank.simulation.errors import fish_not_in_fishtank_error
 import itertools
 import copy
+import time
+
+# The answer of Fishtank.find_largest_group: species, the sorted scientific names of the group, and complete,
+# False when the search ran out of its budget, the group then still gets along but a larger one may exist
+GroupSearch = namedtuple('GroupSearch', ['species', 'complete'])
 # The default size of the fishtank is length:10, width:10, heigth:10
 # By default, there is no fish in the fishtank
 # By default the status of the fishtank is healthy
@@ -176,14 +182,29 @@ class Fishtank:
     # This function returns the largest group of new species that can live with every fish in the tank and with
     # each other, as a sorted list of scientific names, one fish per species. An empty tank searches the whole database
     # Two species only count as compatible when coexist_together passes in both directions, so the returned fish
-    # can be added through add_fish in any order
+    # can be added through add_fish in any order. Retired fish are left out, they can no longer be added
+    # time_limit (seconds) and max_steps bound the search, see find_largest_group
+    def maximize_diversity_given_fish_v3(self, time_limit=None, max_steps=None):
+        return self.find_largest_group(time_limit=time_limit, max_steps=max_steps).species
+
+    # The search behind maximize_diversity_given_fish_v3, answered as a GroupSearch
     # The problem is a maximum clique search: candidates are the nodes, compatible pairs are the edges
     # Branch and bound keeps it fast, a greedy colouring of the remaining candidates gives an upper bound on how many
     # more species can still join the current group (Tomita and Seki), so most branches are cut early
-    def maximize_diversity_given_fish_v3(self):
-        fish_dao = Fishdao()
+    # The search can still take very long on some inputs, so it can be given a budget: time_limit in seconds and
+    # max_steps, the number of groups it may grow. Once the budget is spent it answers the largest group found so far,
+    # with complete False. That group still all gets along, it is only not known to be the largest. When the time runs
+    # out while the pairs are checked, only the candidates whose pairs were all checked are searched, at least one
+    def find_largest_group(self, time_limit=None, max_steps=None, fish_dao=None):
+        deadline = None if time_limit is None else time.monotonic() + time_limit
+        if fish_dao is None:
+            fish_dao = Fishdao()
         current_fish_in_tank = [fish_dao.all_fish[key] for key in self.fish_map]
         all_remaining_fish = fish_dao.retrieve_remaining_fish(list(self.fish_map.keys()))
+        complete = True
+
+        def out_of_time():
+            return deadline is not None and time.monotonic() >= deadline
 
         def coexist_both_ways(first_fish, second_fish):
             try:
@@ -195,11 +216,20 @@ class Fishtank:
 
         # sorted, so the same fish give the same answer whatever order the database returns them in
         candidates = sorted(scientific_name for scientific_name, fish in all_remaining_fish.items()
-                            if all(coexist_both_ways(resident, fish) for resident in current_fish_in_tank))
+                            if not fish.is_retired()
+                            and all(coexist_both_ways(resident, fish) for resident in current_fish_in_tank))
 
+        # a fish of unknown temperament never gets along with another species, it is never checked against one
         compatible_with = {scientific_name: set() for scientific_name in candidates}
-        for i, first_name in enumerate(candidates):
-            for second_name in candidates[i + 1:]:
+        known = [scientific_name for scientific_name in candidates
+                 if all_remaining_fish[scientific_name].cross_species_temperament != UNKNOWN_TEMPERAMENT]
+        for i, first_name in enumerate(known):
+            # the first fish is always checked, so a fish that can join is always answered
+            if i > 0 and out_of_time():
+                complete = False
+                candidates = sorted(set(known[:i]) | (set(candidates) - set(known)))
+                break
+            for second_name in known[i + 1:]:
                 if coexist_both_ways(all_remaining_fish[first_name], all_remaining_fish[second_name]):
                     compatible_with[first_name].add(second_name)
                     compatible_with[second_name].add(first_name)
@@ -222,12 +252,18 @@ class Fishtank:
             return ordered
 
         maximum_diversity_combination = []
+        steps = 0
 
         def expand(current_group, remaining):
-            nonlocal maximum_diversity_combination
+            nonlocal maximum_diversity_combination, steps, complete
+            steps += 1
             # try the candidates with the highest bound first, stop once no bound can beat the best group found
             for scientific_name, bound in reversed(colour_candidates(remaining)):
                 if len(current_group) + bound <= len(maximum_diversity_combination):
+                    return
+                # the first group is always grown to the end, so there is a group to answer
+                if maximum_diversity_combination and (out_of_time() or (max_steps is not None and steps >= max_steps)):
+                    complete = False
                     return
                 new_group = current_group + [scientific_name]
                 new_remaining = remaining & compatible_with[scientific_name]
@@ -238,7 +274,7 @@ class Fishtank:
                 remaining = remaining - {scientific_name}
 
         expand([], set(candidates))
-        return sorted(maximum_diversity_combination)
+        return GroupSearch(species=sorted(maximum_diversity_combination), complete=complete)
 
     def maximize_diversity_on_empty_tank(self):
         return []

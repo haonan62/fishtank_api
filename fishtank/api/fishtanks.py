@@ -1,19 +1,24 @@
-from flask import Blueprint, g
+from flask import Blueprint, g, request
 
 from fishtank.api.common import (ApiError, check_rate_limit, client_ip, is_integer, json_body, login_required,
                                  reject_unknown_fields, success)
 from fishtank.db import database
-from fishtank.models.fish import Fish
+from fishtank.models.fish import Fish, FishPicture
 from fishtank.models.rate_limit import VISITOR_TANKS_PER_IP
 from fishtank.simulation.errors import FishError
 from fishtank.models.fishtank_record import DEFAULT_SIZE, FishtankRecord
 from fishtank.simulation.fishdao import Fishdao
+from fishtank.simulation.suggestions import rank_companions
 
 blueprint = Blueprint('fishtanks', __name__)
 
 NAME_MAX_LENGTH = 100
 SIZE_DIMENSIONS = ('length', 'width', 'height')
 SIZE_MAX = 10000
+SUGGESTION_LIMIT = 12
+SUGGESTION_LIMIT_MAX = 50
+# seconds the search for companions may take, the whole catalogue takes about 1.5 s
+SUGGESTION_TIME_LIMIT = 4
 
 
 def find_fishtank(key):
@@ -164,3 +169,22 @@ def compatible_fish(key):
         except FishError as e:
             incompatible.append({'id': fish_id, 'reason': str(e)})
     return success(compatible=compatible, incompatible=incompatible)
+
+
+# The largest group of new species that can all join the fishtank together, in any order, best first
+# ?limit= how many to answer, 12 by default and at most 50, any first part of the group keeps the promise
+# group_size is the size of the whole group, complete is False when the search ran out of time,
+# the group then still gets along, but a larger one may exist
+@blueprint.route('/fishtanks/<key>/suggestions')
+def suggest_companions(key):
+    limit = request.args.get('limit', str(SUGGESTION_LIMIT))
+    if not limit.isdigit() or not 1 <= int(limit) <= SUGGESTION_LIMIT_MAX:
+        raise ApiError('limit must be a whole number from 1 to {}'.format(SUGGESTION_LIMIT_MAX), field='limit')
+    fishtank = find_fishtank(key).to_fishtank()
+    fish_dao = Fishdao()
+    search = fishtank.find_largest_group(time_limit=SUGGESTION_TIME_LIMIT, fish_dao=fish_dao)
+    pictured_ids = {picture.fish_id for picture in FishPicture.select(FishPicture.fish).distinct()}
+    ranked = rank_companions([fish_dao.all_fish[name] for name in fishtank.fish_map],
+                             [fish_dao.all_fish[name] for name in search.species], pictured_ids)
+    return success(suggestions=[fish.id for fish in ranked[:int(limit)]], group_size=len(ranked),
+                   complete=search.complete)

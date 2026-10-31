@@ -10,16 +10,25 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 
 import { ApiError, api } from '../api/client'
-import type { Compatibility, Fish, Fishtank, TankSize } from '../api/types'
+import type { Compatibility, Fish, Fishtank, Suggestions, TankSize } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 import { Aquarium } from '../components/Aquarium'
 import { FishArt } from '../components/FishArt'
 import { FishPanel } from '../components/FishDetail'
-import { FishPicker, ResidentList, SizeDialog, TankName, VisitorBanner, WaterPanel, type Resident } from '../components/TankParts'
+import {
+  CompanionPanel,
+  FishPicker,
+  ResidentList,
+  SizeDialog,
+  TankName,
+  VisitorBanner,
+  WaterPanel,
+  type Resident,
+} from '../components/TankParts'
 import { useToast } from '../components/Toasts'
 import { Badge, Button, ConfirmDialog, EmptyState, ErrorNotice, LoadingBlock, buttonClasses } from '../components/ui'
 import { useCatalogue } from '../lib/catalogue'
@@ -27,6 +36,10 @@ import { alarmTitle, displayName } from '../lib/fish'
 import { useMediaQuery } from '../lib/useMediaQuery'
 import { forgetVisitorTank, rememberVisitorTank, setLastTankKey } from '../lib/visitorTanks'
 import { useBuildTank } from './Home'
+
+// how many companions to suggest, and how many once the user asks to see more (the most the api answers)
+const FEW_SUGGESTIONS = 12
+const MORE_SUGGESTIONS = 50
 
 function TankDropZone({ children, alarm }: { children: ReactNode; alarm: number }) {
   const { setNodeRef, isOver } = useDroppable({ id: 'tank' })
@@ -65,6 +78,11 @@ export function TankWorkspace() {
   const [editingSize, setEditingSize] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [suggestions, setSuggestions] = useState<Suggestions | null>(null)
+  const [suggesting, setSuggesting] = useState(false)
+  const [moreSuggestions, setMoreSuggestions] = useState(false)
+  // the search can take a second or two, only the answer to the latest request is shown
+  const suggestionRequest = useRef(0)
   // one picker at a time, two would register the same drag targets
   const wide = useMediaQuery('(min-width: 1024px)')
 
@@ -79,8 +97,23 @@ export function TankWorkspace() {
     }
   }, [key])
 
+  const refreshSuggestions = useCallback(async () => {
+    const request = ++suggestionRequest.current
+    setSuggesting(true)
+    try {
+      const answer = await api.suggestions(key, moreSuggestions ? MORE_SUGGESTIONS : FEW_SUGGESTIONS)
+      if (request === suggestionRequest.current) setSuggestions(answer)
+    } catch {
+      // the panel says there is nothing to suggest, adding fish one by one still works
+      if (request === suggestionRequest.current) setSuggestions(null)
+    } finally {
+      if (request === suggestionRequest.current) setSuggesting(false)
+    }
+  }, [key, moreSuggestions])
+
   useEffect(() => {
     setTank(null)
+    setSuggestions(null)
     setMissing(false)
     setLoadError(null)
     api
@@ -103,6 +136,12 @@ export function TankWorkspace() {
   useEffect(() => {
     tank?.fish.filter((entry) => !byId.has(entry.id)).forEach((entry) => lookup(entry.id))
   }, [tank, byId, lookup])
+
+  // the suggestions only depend on which species live in the tank, they are asked again whenever that changes
+  const species = tank ? `${tank.key}:${tank.fish.map((entry) => entry.id).join(',')}` : null
+  useEffect(() => {
+    if (species !== null) refreshSuggestions()
+  }, [species, refreshSuggestions])
 
   const residents: Resident[] = useMemo(
     () =>
@@ -294,8 +333,20 @@ export function TankWorkspace() {
             <ResidentList residents={residents} busy={busy} onCount={setCount} onOpen={setOpenFish} />
           </div>
 
-          <aside className="space-y-6 lg:col-start-2 xl:sticky xl:top-20 xl:col-start-3 xl:row-start-1 xl:self-start">
+          {/* not sticky, the suggestions can make it taller than the screen */}
+          <aside className="space-y-6 lg:col-start-2 xl:col-start-3 xl:row-start-1 xl:self-start">
             <WaterPanel residents={residents} />
+            <CompanionPanel
+              suggestions={suggestions}
+              byId={byId}
+              checking={suggesting}
+              busy={busy}
+              expanded={moreSuggestions}
+              onExpand={setMoreSuggestions}
+              onAdd={addOne}
+              onAddAll={(companions) => change('add', companions.map((fish) => fish.id))}
+              onOpen={setOpenFish}
+            />
             <p className="px-1 text-xs leading-relaxed text-muted">
               Fish that would not get along with everyone in the tank are greyed out in the list. Their reason shows below their
               name.

@@ -102,6 +102,15 @@ export interface Compatibility {
   incompatible: { id: number; reason: string }[]
 }
 
+// the largest group of new species that can all join together, best first, any first part of it can be added at once
+export interface Suggestions {
+  suggestions: number[]
+  // the size of the whole group, suggestions holds at most the limit asked for
+  group_size: number
+  // false when the search ran out of time, a larger group may exist
+  complete: boolean
+}
+
 // the fields an admin sends to create or change a fish
 export type FishInput = Partial<
   Omit<Fish, 'id' | 'fishbase_url' | 'retired' | 'pictures' | 'fishtank_count'>
