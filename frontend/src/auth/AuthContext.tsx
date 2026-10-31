@@ -1,13 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 
-import { api, getToken, setLoginExpiredHandler, setToken } from '../api/client'
+import { api, hasSession, setLoginExpiredHandler } from '../api/client'
 import type { User } from '../api/types'
 
 export type AuthDialog = { mode: 'login' | 'register'; reason?: string } | null
 
 interface AuthState {
   user: User | null
-  // false until the stored token is checked, so pages do not flash the logged out state
+  // false until the login cookie is checked, so pages do not flash the logged out state
   ready: boolean
   dialog: AuthDialog
   openDialog: (mode: 'login' | 'register', reason?: string) => void
@@ -15,6 +15,8 @@ interface AuthState {
   login: (username: string, password: string) => Promise<User>
   register: (username: string, password: string) => Promise<User>
   logout: () => Promise<void>
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>
+  deleteAccount: (password: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthState | null>(null)
@@ -29,28 +31,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null)
       setDialog({ mode: 'login', reason: 'Your login has expired, please log in again.' })
     })
-    if (!getToken()) {
+    if (!hasSession()) {
       setReady(true)
       return () => setLoginExpiredHandler(null)
     }
     api
       .me()
       .then(setUser)
-      .catch(() => setToken(null))
+      .catch(() => setUser(null))
       .finally(() => setReady(true))
     return () => setLoginExpiredHandler(null)
   }, [])
 
   const login = useCallback(async (username: string, password: string) => {
     const answer = await api.login(username, password)
-    setToken(answer.token)
     setUser(answer.user)
     return answer.user
   }, [])
 
   const register = useCallback(async (username: string, password: string) => {
     const answer = await api.register(username, password)
-    setToken(answer.token)
     setUser(answer.user)
     return answer.user
   }, [])
@@ -59,9 +59,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await api.logout()
     } finally {
-      setToken(null)
       setUser(null)
     }
+  }, [])
+
+  // other devices are logged out, this one stays logged in
+  const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
+    setUser(await api.changePassword(currentPassword, newPassword))
+  }, [])
+
+  const deleteAccount = useCallback(async (password: string) => {
+    await api.deleteAccount(password)
+    setUser(null)
   }, [])
 
   const value = useMemo<AuthState>(
@@ -74,8 +83,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       register,
       logout,
+      changePassword,
+      deleteAccount,
     }),
-    [user, ready, dialog, login, register, logout],
+    [user, ready, dialog, login, register, logout, changePassword, deleteAccount],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

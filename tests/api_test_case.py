@@ -20,7 +20,9 @@ class ApiTestCase(unittest.TestCase):
         self.app = create_app(os.path.join(directory, 'fishtank.db'))
         # other test modules read the committed database
         self.addCleanup(use_database, SEED_DATABASE)
-        self.client = self.app.test_client()
+        # the helpers below log in with "Authorization: Bearer", so this client keeps no cookies,
+        # tests of the web ui's session cookie make their own client that does
+        self.client = self.app.test_client(use_cookies=False)
 
     def call(self, method, path, json=None, token=None, expected_status=None):
         headers = {'Authorization': 'Bearer ' + token} if token else {}

@@ -51,6 +51,14 @@ function UserMenu() {
             Logged in as <span className="font-medium text-ink">{user.username}</span>
             {user.role === 'admin' && ' · admin'}
           </p>
+          <Link
+            to="/account"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface-2"
+          >
+            Account
+          </Link>
           <button
             type="button"
             role="menuitem"

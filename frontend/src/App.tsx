@@ -8,6 +8,7 @@ import { AdminFishForm } from './pages/admin/AdminFishForm'
 import { AdminFishList } from './pages/admin/AdminFishList'
 import { AdminLayout } from './pages/admin/AdminLayout'
 import { AdminUsers } from './pages/admin/AdminUsers'
+import { Account } from './pages/Account'
 import { Catalogue } from './pages/Catalogue'
 import { FishPage } from './pages/FishPage'
 import { Home } from './pages/Home'
@@ -29,6 +30,7 @@ export function App() {
                 <Route path="tanks/new" element={<NewTank />} />
                 <Route path="tanks/:key" element={<TankWorkspace />} />
                 <Route path="my-tanks" element={<MyTanks />} />
+                <Route path="account" element={<Account />} />
                 <Route path="*" element={<NotFound />} />
               </Route>
               <Route path="admin" element={<AdminLayout />}>

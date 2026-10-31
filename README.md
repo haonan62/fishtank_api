@@ -45,6 +45,11 @@ To run the tests, enter "python -m unittest -v", and for the web ui "npm test" i
 ```
 
 ```
+The login cookie of the web ui is only sent over https. Chrome and Firefox make an exception for localhost,
+in another browser over plain http set FISHTANK_SECURE_COOKIES=0 for local use, never in production
+```
+
+```
 The app never writes to data/fish.db, it works on its own database: FISHTANK_DATABASE when set, instance/fishtank.db otherwise
 The first time the app starts it copies data/fish.db there, every start after brings it to the latest schema
 Users, fishtanks and fish changed by admins live only in the app's database, which is not committed
@@ -75,8 +80,9 @@ The layout of the code, and how to work on it together, is described in [CONTRIB
 
 Every answer is json with a "status" of "success" or "error", an error comes with a "message" and an http status:
 400 for a bad request, 401 when a login is needed or the token is wrong, 403 for something only admins may do,
-404 when the fish or fishtank does not exist (or belongs to someone else), 409 for a conflict,
-422 when the fish cannot live together (the alarm), the fishtank is then unchanged
+a wrong password or a missing csrf token, 404 when the fish or fishtank does not exist (or belongs to someone else),
+409 for a conflict, 422 when the fish cannot live together (the alarm), the fishtank is then unchanged,
+429 when there were too many attempts, with a "Retry-After" header in seconds
 When a request field is wrong, the error also names it in "field", so a form can show the message next to it
 Large json answers are gzipped when the client accepts it
 
@@ -91,13 +97,32 @@ admin    everything a user can do, and adds, changes and removes fish, and chang
 A user logs in once and sends the token with every request, in the header `Authorization: Bearer <token>`
 A token lasts 30 days, a request with a wrong or expired token is refused, it is not treated as a visitor's
 
+Logging in or registering also sets two cookies, which the web ui uses instead of the token:
+`fishtank_session` carries the token, scripts cannot read it (HttpOnly, Secure, SameSite=Lax);
+`fishtank_csrf` can be read, and every request that changes something (not GET) with the session cookie must send
+its value back in the header `X-CSRF-Token`, otherwise it is refused (403). Other sites cannot read the cookie,
+so they cannot make a logged in browser change anything. Requests with `Authorization: Bearer` need no csrf token
+An expired session cookie is refused (401) and removed with the answer
+
 ```
 POST ip:5000/fishtank_api/auth/register   {"username": ..., "password": ...}
      username: 3 to 32 letters, digits, dots, dashes or underscores, unique ignoring case; password: 8 to 128 characters
      everyone registers as a user, the answer carries "user", "token" and "expires_at"
 POST ip:5000/fishtank_api/auth/login      {"username": ..., "password": ...}, answers like register
-POST ip:5000/fishtank_api/auth/logout     ends the login of this token only
+POST ip:5000/fishtank_api/auth/logout     ends the login of this token only, and removes the cookies
 GET  ip:5000/fishtank_api/auth/me         the logged in user
+POST ip:5000/fishtank_api/auth/password   {"current_password": ..., "new_password": ...}, every other login of the user ends
+DELETE ip:5000/fishtank_api/auth/me       {"password": ...}, removes the account with its logins and saved fishtanks,
+                                          the last admin cannot remove themselves (409)
+```
+
+Too many attempts are answered with 429 and a Retry-After header, counted in the database, so every worker sees them:
+
+```
+failed logins               5 per username and 20 per ip address in 15 minutes, a wrong password given to change
+                            the password or remove the account counts as well, a login succeeding resets the username's count
+new accounts                10 per ip address in an hour
+fishtanks made by visitors  30 per ip address in an hour, logged in users are not limited
 ```
 
 ### Fish
@@ -188,7 +213,14 @@ fuzzy search(difficult, might make more sense to put into frontend)
 ## Deployment
 
 Please use gunicorn and nginx to serve the production app, e.g. gunicorn -b 0.0.0.0:5000 "fishtank:create_app()".
-The app keeps its data in one sqlite file, so run a single instance and keep the file (FISHTANK_DATABASE) on a persistent volume. If you want configuration files for both, please approach the authors. But googling will be fine, there are plenty of online tutorials.
+The app keeps its data in one sqlite file, so run a single instance and keep the file (FISHTANK_DATABASE) on a persistent volume.
+Serve it over https, the login cookie is only sent over https. Behind nginx, set FISHTANK_PROXIES to the number of proxies
+in front of the app (1 for nginx alone), so rate limits count the visitor's ip address from X-Forwarded-For instead of
+the proxy's, and https is recognised from X-Forwarded-Proto. Leave it unset when nothing sits in front of the app,
+otherwise anyone could pick their ip address by sending X-Forwarded-For.
+Every answer carries a Content-Security-Policy, X-Content-Type-Options, Referrer-Policy and X-Frame-Options,
+and Strict-Transport-Security over https. A ui that loads files from somewhere new needs CONTENT_SECURITY_POLICY
+in fishtank/app.py changed with it. If you want configuration files for both, please approach the authors. But googling will be fine, there are plenty of online tutorials.
 There is also a separate branch for docker deployment, please refer to the branches or approach authors for deployment details.
 
 ## Built With
