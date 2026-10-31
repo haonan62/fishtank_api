@@ -23,6 +23,17 @@ flask --app fishtank run --debug
 python -m unittest -v
 ```
 
+The web ui lives in `frontend/` (React, TypeScript, Vite, Tailwind), Node 20.19 or newer:
+
+```bash
+cd frontend
+npm ci
+npm run dev
+```
+
+`npm run dev` serves the ui on http://localhost:5173 and forwards api calls to the Flask app on port 5000, so run both.
+`npm test` runs the ui's unit tests, `npm run build` type checks and writes `frontend/dist/`, which Flask then serves itself.
+
 The app creates its own database at `instance/fishtank.db` (or `FISHTANK_DATABASE`) on first start.
 Delete that file to start over from `data/fish.db`.
 To try the admin endpoints locally, run `flask --app fishtank create-admin <username>`.
@@ -31,7 +42,8 @@ To try the admin endpoints locally, run `flask --app fishtank create-admin <user
 
 ```
 fishtank/                 the app, one python package
-  __init__.py             create_app(): the Flask app factory, wires blueprints, errors and the database
+  __init__.py             create_app(), loads the app only when one is made
+  app.py                  the Flask app factory: blueprints, errors, the database, gzip and serving the built ui
   cli.py                  flask commands: create-admin, set-role
   db.py                   the peewee database, BaseModel, time helpers, setting up the app's database
   migrations.py           versioned schema upgrades (sqlite user_version), python -m fishtank.migrations
@@ -53,6 +65,12 @@ fishtank/                 the app, one python package
 tests/                    unittest tests, run with python -m unittest
   api_test_case.py        base class for http tests, each test gets its own copy of the database
 scripts/                  one-off scripts that are not part of the app
+frontend/                 the web ui
+  src/api/                the api client and the shapes of its answers, the only place that calls fetch
+  src/auth/               who is logged in, the login token
+  src/lib/                logic without ui: fish wording, water ranges, the catalogue, visitor tanks
+  src/components/         shared pieces: aquarium, fish detail, filters, dialogs, buttons
+  src/pages/              one file per page, admin/ holds the admin portal
 data/fish.db              the committed fish database, the app never writes to it
 ```
 
@@ -63,6 +81,8 @@ and tested without a web server.
 
 ## Making changes
 
+- **A new page**: add it under `frontend/src/pages/` and a route in `frontend/src/App.tsx`. Use the colours in
+  `frontend/src/index.css` by name (`bg-surface`, `text-muted`, `text-brand`...), so dark mode keeps working.
 - **A new endpoint**: add a route to the blueprint of its resource in `fishtank/api/`, or a new module with its
   own `blueprint` that you register in `create_app`. Raise `ApiError(message, status_code)` for errors, return
   `success(...)` otherwise. Add tests under `tests/` built on `ApiTestCase`.

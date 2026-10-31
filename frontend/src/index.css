@@ -1,0 +1,113 @@
+@import 'tailwindcss';
+
+/* Semantic colours, components use these names only, so dark mode is a change of values here */
+@theme {
+  --color-bg: #f6f8f7;
+  --color-surface: #ffffff;
+  --color-surface-2: #eef3f2;
+  --color-ink: #12313a;
+  --color-muted: #5b7279;
+  --color-line: #dbe5e3;
+  --color-brand: #0e6a7b;
+  --color-brand-strong: #0a5361;
+  --color-brand-soft: #dff1f0;
+  --color-on-brand: #ffffff;
+  --color-danger: #c4462b;
+  --color-danger-soft: #fbe9e4;
+  --color-ok: #2f7d4f;
+  --color-ok-soft: #e3f3e8;
+  --color-warn: #9a6a00;
+  --color-warn-soft: #fbf1d9;
+  --color-water-top: #bfe9ee;
+  --color-water-bottom: #4fa3b5;
+  --color-sand: #e9dcc0;
+
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-display: 'Fraunces', ui-serif, Georgia, 'Times New Roman', serif;
+
+  --shadow-card: 0 1px 2px rgb(18 49 58 / 0.06), 0 4px 16px rgb(18 49 58 / 0.06);
+  --shadow-pop: 0 8px 32px rgb(18 49 58 / 0.18);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #0b1a1f;
+    --color-surface: #11252c;
+    --color-surface-2: #163038;
+    --color-ink: #e3eff0;
+    --color-muted: #93abb0;
+    --color-line: #23414a;
+    --color-brand: #4cc2cf;
+    --color-brand-strong: #79d6df;
+    --color-brand-soft: #14373f;
+    --color-on-brand: #062026;
+    --color-danger: #f08a70;
+    --color-danger-soft: #3a1d17;
+    --color-ok: #6fcf95;
+    --color-ok-soft: #163325;
+    --color-warn: #e8c060;
+    --color-warn-soft: #362a10;
+    --color-water-top: #1b5866;
+    --color-water-bottom: #0b2b35;
+    --color-sand: #4a4130;
+  }
+}
+
+html {
+  color-scheme: light dark;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+/* Fish swim from side to side at their own pace, the aquarium sets --swim-duration and --swim-delay per fish */
+@keyframes swim {
+  0% { transform: translateX(0) scaleX(1); }
+  45% { transform: translateX(var(--swim-distance, 220px)) scaleX(1); }
+  50% { transform: translateX(var(--swim-distance, 220px)) scaleX(-1); }
+  95% { transform: translateX(0) scaleX(-1); }
+  100% { transform: translateX(0) scaleX(1); }
+}
+
+@keyframes bob {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -6px; }
+}
+
+@keyframes bubble {
+  0% { transform: translateY(0); opacity: 0; }
+  10% { opacity: 0.7; }
+  100% { transform: translateY(-420px); opacity: 0; }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-5px); }
+  80% { transform: translateX(5px); }
+}
+
+@keyframes rise-in {
+  from { transform: translateY(8px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.animate-swim { animation: swim var(--swim-duration, 14s) ease-in-out var(--swim-delay, 0s) infinite; }
+.animate-bob { animation: bob 3.2s ease-in-out infinite; }
+.animate-bubble { animation: bubble var(--bubble-duration, 7s) linear var(--bubble-delay, 0s) infinite; }
+.animate-shake { animation: shake 0.45s ease-in-out; }
+.animate-rise-in { animation: rise-in 0.25s ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-swim, .animate-bob, .animate-bubble, .animate-shake, .animate-rise-in { animation: none; }
+}

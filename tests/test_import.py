@@ -130,7 +130,7 @@ class ImportTest(unittest.TestCase):
             'water_hardness_min': 5, 'water_hardness_max': 19, 'temperature_min': 23, 'temperature_max': 27,
             'reproduce_method': None, 'origin': None, 'in_species_temperament': 'unknown',
             'cross_species_temperament': 'unknown', 'fishtank_position': None, 'fishbase_spec_code': 100,
-            'data_source': 'FishBase 25.04'})
+            'data_source': 'FishBase 25.04', 'retired_at': None})
         self.assertEqual((fish['Aphyocharax erythrurus']['common_name'], fish['Aphyocharax erythrurus']['family_name']),
                          (None, 'Characidae'))
 

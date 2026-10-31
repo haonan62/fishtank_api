@@ -195,7 +195,7 @@ class AdminFishTest(ApiTestCase):
         self.assertEqual((fish['scientific_name'], fish['data_source'], fish['pictures'], fish['fishbase_url']),
                          ('Testus maximus', 'manual entry', [], None))
         self.assertGreater(fish['id'], 1040)
-        listed = self.call('GET', '/fish').get_json()['fish']
+        listed = self.call('GET', '/fish', token=self.admin).get_json()['fish']
         self.assertIn(fish, listed)
         groups = self.call('GET', '/fish?group_by=family').get_json()['fish_by_family']
         self.assertEqual([entry['id'] for entry in groups['Testidae']], [fish['id']])

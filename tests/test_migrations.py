@@ -111,8 +111,8 @@ class MigrationTest(unittest.TestCase):
 
     def test_reports_and_stores_latest_version(self):
         self.assertEqual(read_version(self.legacy_path), 0)
-        self.assertEqual(migrations.migrate(self.legacy_path, self.target_path), 3)
-        self.assertEqual(read_version(self.target_path), 3)
+        self.assertEqual(migrations.migrate(self.legacy_path, self.target_path), migrations.LATEST_VERSION)
+        self.assertEqual(read_version(self.target_path), migrations.LATEST_VERSION)
 
     def test_scientific_names_stay_unique(self):
         migrations.migrate(self.legacy_path, self.target_path)
@@ -305,7 +305,7 @@ class FishModelTest(unittest.TestCase):
                          'maximum_temperature', 'reproduce_method', 'origin', 'in_species_temperament',
                          'cross_species_temperament', 'fishtank_position'}
         dic = fish.to_dic()
-        self.assertEqual(set(dic), previous_keys | {'id', 'data_source', 'fishbase_url', 'pictures'})
+        self.assertEqual(set(dic), previous_keys | {'id', 'data_source', 'fishbase_spec_code', 'fishbase_url', 'retired', 'pictures'})
         self.assertEqual(dic['id'], fish.id)
         self.assertEqual(dic['data_source'], 'aqua-fish.net')
         self.assertIsNotNone(fish.fishbase_spec_code)

@@ -5,6 +5,7 @@ from fishtank.db import database
 from fishtank.models.fish import Fish
 from fishtank.simulation.errors import FishError
 from fishtank.models.fishtank_record import DEFAULT_SIZE, FishtankRecord
+from fishtank.simulation.fishdao import Fishdao
 
 blueprint = Blueprint('fishtanks', __name__)
 
@@ -119,6 +120,9 @@ def operate_fishtank(key, action):
         for fish_id in fish_ids:
             if fish_id not in fish_by_id:
                 raise ApiError('{} does not exist in database'.format(fish_id), 404)
+            # fish already in a fishtank can still be removed after they are retired
+            if action == 'add' and fish_by_id[fish_id].is_retired():
+                raise ApiError('{} is retired and can no longer be added'.format(fish_by_id[fish_id].scientific_name), 409)
 
         fishtank = record.to_fishtank()
         try:
@@ -135,3 +139,22 @@ def operate_fishtank(key, action):
         record.touch()
         record.save()
     return success(fishtank=record.to_dic())
+
+
+# Which fish in the catalogue could join the fishtank now, one more of a species already in it included
+# The same check as adding a fish, so the answer holds for the next add, until the fishtank changes
+@blueprint.route('/fishtanks/<key>/compatible')
+def compatible_fish(key):
+    fishtank = find_fishtank(key).to_fishtank()
+    fish_dao = Fishdao()
+    compatible = []
+    incompatible = []
+    for fish_id, fish in sorted(fish_dao.all_fish_by_id.items()):
+        if fish.is_retired():
+            continue
+        try:
+            fishtank.check_can_add(fish, fish_dao.all_fish)
+            compatible.append(fish_id)
+        except FishError as e:
+            incompatible.append({'id': fish_id, 'reason': str(e)})
+    return success(compatible=compatible, incompatible=incompatible)

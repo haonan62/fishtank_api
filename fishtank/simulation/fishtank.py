@@ -63,38 +63,18 @@ class Fishtank:
     # If the for loop does not throw any error, then the method returns a true, otherwise, the method throws the
     # exception to the higher layer
     def add_fish(self, another_fish):
-        temp_fish_dao = Fishdao()
+        self.check_can_add(another_fish)
+        self.fish_map[another_fish.scientific_name] = self.fish_map.get(another_fish.scientific_name, 0) + 1
 
-        all_fish = temp_fish_dao.all_fish
-        if isinstance(another_fish, Fish):
-
-            if another_fish.scientific_name in self.fish_map:
-
-                try:
-
-                    for key, value in self.fish_map.items():
-                        cur_fish = all_fish[key]
-                        co_exist_flag = cur_fish.coexist_together(another_fish)
-
-                    cur_number = self.fish_map[another_fish.scientific_name]+1
-                    self.fish_map[another_fish.scientific_name] = cur_number
-                except Exception as e:
-                    raise e
-
-            elif another_fish.scientific_name not in self.fish_map:
-
-                try:
-
-                    for key, value in self.fish_map.items():
-                        cur_fish = all_fish[key]
-                        co_exist_flag = cur_fish.coexist_together(another_fish)
-
-                    self.fish_map[another_fish.scientific_name] = 1
-                except Exception as e:
-                    raise e
-
-        else:
+    # Raises the reason when the fish cannot join the fishtank, every fish in the tank must accept it
+    # all_fish (scientific name to fish) can be passed in when many fish are checked against the same tank
+    def check_can_add(self, another_fish, all_fish=None):
+        if not isinstance(another_fish, Fish):
             raise Exception('The object is not fish')
+        if all_fish is None:
+            all_fish = Fishdao().all_fish
+        for key in self.fish_map:
+            all_fish[key].coexist_together(another_fish)
 
     def add_fish_list_in_sequence(self, fish_list):
         for sample_fish in fish_list:

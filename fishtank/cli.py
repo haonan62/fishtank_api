@@ -13,7 +13,7 @@ def register_commands(app):
     def create_admin(username, password):
         problem = check_new_credentials(username, password)
         if problem is not None:
-            raise click.ClickException(problem)
+            raise click.ClickException(problem[1])
         if User.get_or_none(User.username == username) is not None:
             raise click.ClickException('{} already exists, use "flask --app fishtank set-role {} admin"'.format(username, username))
         User.create_with_password(username, password, role=ROLE_ADMIN)

@@ -4,3 +4,5 @@ __pycache__/
 *.egg-info/
 .git/
 .github/
+frontend/node_modules/
+frontend/dist/
