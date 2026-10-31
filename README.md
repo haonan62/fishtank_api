@@ -36,10 +36,12 @@ Activate virtual environment, run pip install -e .
 
 ```
 To run the app, enter "flask --app fishtank run --debug"
+The web ui is served at http://127.0.0.1:5000 once it is built: in frontend/, run npm ci, then npm run build (Node 20.19 or newer)
+While working on the ui, run npm run dev in frontend/ as well and open http://localhost:5173, it reloads on every change
 ```
 
 ```
-To run the tests, enter "python -m unittest -v"
+To run the tests, enter "python -m unittest -v", and for the web ui "npm test" in frontend/
 ```
 
 ```
@@ -75,6 +77,8 @@ Every answer is json with a "status" of "success" or "error", an error comes wit
 400 for a bad request, 401 when a login is needed or the token is wrong, 403 for something only admins may do,
 404 when the fish or fishtank does not exist (or belongs to someone else), 409 for a conflict,
 422 when the fish cannot live together (the alarm), the fishtank is then unchanged
+When a request field is wrong, the error also names it in "field", so a form can show the message next to it
+Large json answers are gzipped when the client accepts it
 
 ### Users and roles
 
@@ -101,7 +105,8 @@ GET  ip:5000/fishtank_api/auth/me         the logged in user
 ```
 GET ip:5000/fishtank_api/fish                   every fish, by id
 GET ip:5000/fishtank_api/fish?group_by=family   every fish, sorted into their families ("fish_by_family")
-GET ip:5000/fishtank_api/fish/<id>              one fish
+GET ip:5000/fishtank_api/fish/<id>              one fish, also a retired one (fishtanks may keep it)
+The catalogue leaves out retired fish, admins see them with ?include_retired=true and every fish carries its fishtank_count for them
 Every fish carries its id, its data_source (aqua-fish.net, FishBase 25.04, or manual entry for fish added by an admin),
 a fishbase_url to its FishBase page when known, and its pictures: hosted urls with author, licence, credit and source page,
 the pictures are not stored here
@@ -124,6 +129,9 @@ POST   ip:5000/fishtank_api/fish        adds a fish, with the fields of a fish a
 PATCH  ip:5000/fishtank_api/fish/<id>   changes only the fields that are sent, the rules above hold for the whole fish after it
        fishtanks keep the fish, even when it no longer fits in with the others
 DELETE ip:5000/fishtank_api/fish/<id>   removes the fish and its pictures, refused (409) while the fish lives in a fishtank
+POST   ip:5000/fishtank_api/fish/<id>/retire    takes the fish out of the catalogue, it cannot be added to fishtanks anymore,
+                                                fishtanks that keep it are not changed
+POST   ip:5000/fishtank_api/fish/<id>/restore   brings a retired fish back into the catalogue
 ```
 
 ### Fishtanks
@@ -139,6 +147,8 @@ GET    ip:5000/fishtank_api/fishtanks/<key>          one fishtank
 PATCH  ip:5000/fishtank_api/fishtanks/<key>          {"name": ..., "size": ...}, changes the name or size
 DELETE ip:5000/fishtank_api/fishtanks/<key>          removes the fishtank
 POST   ip:5000/fishtank_api/fishtanks/<key>/save     a logged in user saves a visitor's fishtank, e.g. one built before logging in
+GET    ip:5000/fishtank_api/fishtanks/<key>/compatible   which fish could join now: {"compatible": [ids], "incompatible": [{"id", "reason"}]},
+                                                     the same check as adding them, retired fish are left out
 ```
 
 A fishtank is answered as:

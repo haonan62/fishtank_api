@@ -6,19 +6,24 @@ from fishtank.models.user import AuthToken
 
 
 # Raised anywhere in a request, answered as {'status': 'error', 'message': ...} with the given http status
+# field names the request field that is wrong, so a form can show the message next to it
 class ApiError(Exception):
-    def __init__(self, message, status_code=400):
+    def __init__(self, message, status_code=400, field=None):
         super().__init__(message)
         self.message = message
         self.status_code = status_code
+        self.field = field
 
 
 def success(status_code=200, **body):
     return jsonify({'status': 'success', **body}), status_code
 
 
-def error_response(message, status_code):
-    response = jsonify({'status': 'error', 'message': message})
+def error_response(message, status_code, field=None):
+    body = {'status': 'error', 'message': message}
+    if field is not None:
+        body['field'] = field
+    response = jsonify(body)
     response.status_code = status_code
     if status_code == 401:
         response.headers['WWW-Authenticate'] = 'Bearer'
@@ -38,7 +43,7 @@ def json_body(allow_empty=False):
 def reject_unknown_fields(payload, allowed):
     for field in payload:
         if field not in allowed:
-            raise ApiError('{} is not a known field'.format(field))
+            raise ApiError('{} is not a known field'.format(field), field=field)
 
 
 # whole numbers only, json true and false would otherwise pass as 1 and 0

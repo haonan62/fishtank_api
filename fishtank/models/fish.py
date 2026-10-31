@@ -39,6 +39,7 @@ class Fish(BaseModel):
     fishtank_position = CharField(null=True)
     fishbase_spec_code = IntegerField(null=True, unique=True)
     data_source = CharField()
+    retired_at = DateTimeField(null=True)
 
     def __str__(self):
         return self.scientific_name
@@ -48,6 +49,9 @@ class Fish(BaseModel):
         if self.fishbase_spec_code is None:
             return None
         return FISHBASE_SUMMARY_URL.format(self.fishbase_spec_code)
+
+    def is_retired(self):
+        return self.retired_at is not None
 
     def to_dic(self):
         return{
@@ -69,7 +73,9 @@ class Fish(BaseModel):
             'cross_species_temperament': self.cross_species_temperament,
             'fishtank_position': self.fishtank_position,
             'data_source': self.data_source,
+            'fishbase_spec_code': self.fishbase_spec_code,
             'fishbase_url': self.fishbase_url(),
+            'retired': self.is_retired(),
             'pictures': [picture.to_dic() for picture in self.pictures]
         }
     # important!!!! This is the function indicating whether a fish could coexist with another fish

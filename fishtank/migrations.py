@@ -8,7 +8,7 @@ import sys
 # so migrating an up to date database just copies it
 # Usage: python -m fishtank.migrations data/fish.db data/fish_migrated.db
 
-LATEST_VERSION = 3
+LATEST_VERSION = 4
 
 FISH_COLUMNS = ['scientific_name', 'common_name', 'family_name', 'size_min', 'size_max', 'ph_min', 'ph_max',
                 'water_hardness_min', 'water_hardness_max', 'temperature_min', 'temperature_max', 'reproduce_method',
@@ -136,7 +136,13 @@ def upgrade_to_version_3(connection):
     connection.execute('CREATE INDEX fishtank_fish_fish_id ON fishtank_fish(fish_id)')
 
 
-UPGRADE_STEPS = {1: upgrade_to_version_1, 2: upgrade_to_version_2, 3: upgrade_to_version_3}
+# Version 4: a fish can be retired instead of removed, it leaves the catalogue and cannot be added to a fishtank,
+# fishtanks that already keep it are not changed. retired_at is null for a fish in the catalogue
+def upgrade_to_version_4(connection):
+    connection.execute('ALTER TABLE fish ADD COLUMN retired_at datetime')
+
+
+UPGRADE_STEPS = {1: upgrade_to_version_1, 2: upgrade_to_version_2, 3: upgrade_to_version_3, 4: upgrade_to_version_4}
 
 
 def migrate(source_path, target_path):

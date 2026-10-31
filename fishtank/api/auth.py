@@ -14,12 +14,12 @@ PASSWORD_MIN_LENGTH = 8
 PASSWORD_MAX_LENGTH = 128
 
 
-# returns an error message, or None when the username and password can be used
+# returns (field, error message), or None when the username and password can be used
 def check_new_credentials(username, password):
     if not isinstance(username, str) or not USERNAME_PATTERN.match(username):
-        return 'username must be 3 to 32 letters, digits, dots, dashes or underscores'
+        return 'username', 'username must be 3 to 32 letters, digits, dots, dashes or underscores'
     if not isinstance(password, str) or not PASSWORD_MIN_LENGTH <= len(password) <= PASSWORD_MAX_LENGTH:
-        return 'password must be {} to {} characters'.format(PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH)
+        return 'password', 'password must be {} to {} characters'.format(PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH)
     return None
 
 
@@ -36,12 +36,12 @@ def register():
     username, password = payload.get('username'), payload.get('password')
     problem = check_new_credentials(username, password)
     if problem is not None:
-        raise ApiError(problem)
+        raise ApiError(problem[1], field=problem[0])
     try:
         with database.atomic():
             user = User.create_with_password(username, password)
     except IntegrityError:
-        raise ApiError('username {} is already taken'.format(username), 409)
+        raise ApiError('username {} is already taken'.format(username), 409, field='username')
     return logged_in(user, 201)
 
 
