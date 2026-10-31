@@ -1,26 +1,20 @@
 from peewee import *
-import os.path
+from models.database import BaseModel, SEED_DATABASE
 from models.fish_error import *
 
-current_file = os.path.abspath(os.path.dirname(__file__))
-data_location = os.path.join(current_file, '../data/fish.db')
-
-DATABASE = data_location
-database = SqliteDatabase(DATABASE)
-
-# db = SqliteDatabase('fish.db')
-
-
-class BaseModel(Model):
-    class Meta:
-        database = database
-
+# the committed fish database
+DATABASE = SEED_DATABASE
 
 
 FISHBASE_SUMMARY_URL = 'https://www.fishbase.se/summary/{}'
 
 # A temperament that is not known yet, such a fish is kept apart from every other species
 UNKNOWN_TEMPERAMENT = 'unknown'
+
+# The temperaments live_peacefully_with understands
+IN_SPECIES_TEMPERAMENTS = ('peaceful', 'peaceful to males', 'peaceful to females', 'aggressive/territorial',
+                           UNKNOWN_TEMPERAMENT)
+CROSS_SPECIES_TEMPERAMENTS = ('peaceful', 'aggressive/territorial', 'aggressive to smaller', UNKNOWN_TEMPERAMENT)
 
 
 # Every fish is identified by its id, the scientific name is unique but may change when a species is renamed

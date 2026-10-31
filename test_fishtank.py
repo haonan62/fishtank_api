@@ -38,7 +38,7 @@ class FishPoolTestCase(unittest.TestCase):
 
     # replaces the fish database with the given fish for the rest of the test
     def use_pool(self, fish_list):
-        patcher = mock.patch('models.fishdao.all_fish_list', list(fish_list))
+        patcher = mock.patch('models.fishdao.load_all_fish', return_value=list(fish_list))
         patcher.start()
         self.addCleanup(patcher.stop)
 
