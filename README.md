@@ -19,30 +19,78 @@ Please refer to [Functions to add](#Functions-to-add) to get the detailed proble
 
 ## Getting Started
 
-Run git clone <https://github.com/haonan62/fishtank_api.git>
-
 ### Prerequisites
 
-```
-Python version 3.11 or newer
-Python packages: see pyproject.toml (flask, peewee, gunicorn)
+- Python 3.11 or newer
+- Node 20.19 or newer, for the web ui
+
+### Quick start
+
+From a fresh clone, install the api into a virtual environment:
+
+```bash
+git clone https://github.com/haonan62/fishtank_api.git
 ```
 
-### Installing
-
-```
-Activate virtual environment, run pip install -e .
+```bash
+cd fishtank_api
 ```
 
-```
-To run the app, enter "flask --app fishtank run --debug"
-The web ui is served at http://127.0.0.1:5000 once it is built: in frontend/, run npm ci, then npm run build (Node 20.19 or newer)
-While working on the ui, run npm run dev in frontend/ as well and open http://localhost:5173, it reloads on every change
+```bash
+python3 -m venv .venv && source .venv/bin/activate
 ```
 
+```bash
+pip install -e .
 ```
-To run the tests, enter "python -m unittest -v", and for the web ui "npm test" in frontend/
+
+Build the web ui once, Flask serves the built files itself:
+
+```bash
+npm --prefix frontend ci && npm --prefix frontend run build
 ```
+
+Make yourself an admin, it asks for a password (skip this to only browse and simulate as a visitor):
+
+```bash
+flask --app fishtank create-admin <username>
+```
+
+Start the app, then open http://127.0.0.1:5000:
+
+```bash
+flask --app fishtank run --debug
+```
+
+On macOS port 5000 is often taken by the AirPlay Receiver ("Address already in use", or a 403 from AirTunes).
+Turn it off in System Settings → General → AirDrop & Handoff, or run on another port and open that one instead:
+
+```bash
+flask --app fishtank run --debug --port 5050
+```
+
+Admins can promote other users in the web ui, or with `flask --app fishtank set-role <username> admin`.
+
+### Working on the web ui
+
+Keep Flask running, and start Vite in a second terminal, then open http://localhost:5173, it reloads on every change
+and sends api calls on to Flask. When Flask runs on another port, tell Vite which, e.g. `FISHTANK_API=http://127.0.0.1:5050`:
+
+```bash
+npm --prefix frontend run dev
+```
+
+### Running the tests
+
+```bash
+python -m unittest -v
+```
+
+```bash
+npm --prefix frontend test
+```
+
+### Notes
 
 ```
 The login cookie of the web ui is only sent over https. Chrome and Firefox make an exception for localhost,
@@ -54,11 +102,6 @@ The app never writes to data/fish.db, it works on its own database: FISHTANK_DAT
 The first time the app starts it copies data/fish.db there, every start after brings it to the latest schema
 Users, fishtanks and fish changed by admins live only in the app's database, which is not committed
 Fish added to data/fish.db later only reach an app database that is created after
-```
-
-```
-To make the first admin, enter "flask --app fishtank create-admin <username>" and type a password
-Admins can then promote other users through the api, or enter "flask --app fishtank set-role <username> admin"
 ```
 
 ```
