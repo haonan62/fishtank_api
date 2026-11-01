@@ -74,6 +74,14 @@ run pip install -e ".[fishbase]" (pyarrow is only needed for the import), then e
 "python -m fishtank.fishbase_import <folder> <old database> <new database>", the old database is left unchanged
 ```
 
+```
+Fish FishBase has no reusable picture of got one from Wikimedia Commons, iNaturalist or GBIF, to look again for fish
+without a picture (after an import, say), enter
+"python -m fishtank.picture_import fetch data/fish.db pictures.json" to look them up (this takes a while, the apis are
+asked politely), check pictures.json, then
+"python -m fishtank.picture_import apply pictures.json <old database> <new database>", the old database is left unchanged
+```
+
 The layout of the code, and how to work on it together, is described in [CONTRIBUTING.md](./CONTRIBUTING.md)
 
 ## Important APIs and their functionalities
@@ -133,8 +141,8 @@ GET ip:5000/fishtank_api/fish?group_by=family   every fish, sorted into their fa
 GET ip:5000/fishtank_api/fish/<id>              one fish, also a retired one (fishtanks may keep it)
 The catalogue leaves out retired fish, admins see them with ?include_retired=true and every fish carries its fishtank_count for them
 Every fish carries its id, its data_source (aqua-fish.net, FishBase 25.04, or manual entry for fish added by an admin),
-a fishbase_url to its FishBase page when known, and its pictures: hosted urls with author, licence, credit and source page,
-the pictures are not stored here
+a fishbase_url to its FishBase page when known, and its pictures: hosted urls with author, licence, credit, source page
+and source (FishBase, Wikimedia Commons, iNaturalist or GBIF), the pictures are not stored here
 Fish from FishBase have an "unknown" temperament and no size, origin, reproduce method or fishtank position yet,
 until their temperament is known they can only be kept alone, one fish in a fishtank
 ```
@@ -159,6 +167,12 @@ DELETE ip:5000/fishtank_api/fish/<id>   removes the fish and its pictures, refus
 POST   ip:5000/fishtank_api/fish/<id>/retire    takes the fish out of the catalogue, it cannot be added to fishtanks anymore,
                                                 fishtanks that keep it are not changed
 POST   ip:5000/fishtank_api/fish/<id>/restore   brings a retired fish back into the catalogue
+POST   ip:5000/fishtank_api/fish/<id>/pictures  links a picture an admin found: {"url": the image, "source_url": its page,
+                                                "licence", "source": the site it is from, "author" (optional)}, https only,
+                                                credited "author, licence, via source"; only link pictures whose licence
+                                                allows showing them with a credit
+DELETE ip:5000/fishtank_api/fish/<id>/pictures/<picture id>   unlinks a picture
+The first picture of a fish, the oldest, is the one the catalogue shows
 ```
 
 ### Fishtanks
@@ -178,6 +192,13 @@ GET    ip:5000/fishtank_api/fishtanks/<key>/compatible   which fish could join n
                                                      the same check as adding them, retired fish are left out
 GET    ip:5000/fishtank_api/fishtanks/<key>/suggestions   companions that can all join together, best first:
                                                      {"suggestions": [ids], "group_size": ..., "complete": true}, ?limit= 1 to 50
+POST   ip:5000/fishtank_api/fishtanks/<key>/share    a read only link: the fishtank answers with its share_token, sharing again keeps it
+DELETE ip:5000/fishtank_api/fishtanks/<key>/share    stops sharing, the link stops working
+GET    ip:5000/fishtank_api/shared/<token>           the shared fishtank for anyone with the link: name, owner, size, fish, stocking,
+                                                     warnings, never its key
+POST   ip:5000/fishtank_api/fishtanks/<key>/copy     a new fishtank with the same name, size and fish, saved for a logged in user
+POST   ip:5000/fishtank_api/shared/<token>/copy      the same for a shared fishtank; retired fish are left out of a copy,
+                                                     "skipped" lists them
 ```
 
 Suggestions come from the maximum diversity search (`Fishtank.find_largest_group`), one fish per species, best first:
@@ -226,6 +247,37 @@ GET   ip:5000/fishtank_api/users        every user
 PATCH ip:5000/fishtank_api/users/<id>   {"role": "user" or "admin"}, the last admin cannot become a user
 ```
 
+### Reviewing the catalogue
+
+Users help fill in the fish whose temperament is not known yet, admins review what they suggest:
+
+```
+POST ip:5000/fishtank_api/fish/<id>/suggestions   (logged in) {"in_species_temperament", "cross_species_temperament",
+                                                  "minimum_size", "maximum_size", "minimum_group_size" (optional), "note" (optional)}
+                                                  only for a fish whose temperament is unknown, checked like an admin's change,
+                                                  a user's newer suggestion for the fish replaces their pending one
+GET  ip:5000/fishtank_api/suggestions             (admins) ?status=pending (default), approved, rejected or all
+POST ip:5000/fishtank_api/suggestions/<id>/approve   (admins) copies the values onto the fish, checked again
+POST ip:5000/fishtank_api/suggestions/<id>/reject    (admins)
+```
+
+Admins change many fish at once as a spreadsheet:
+
+```
+GET  ip:5000/fishtank_api/fish/export.csv         id and every field admins can change, ?review=true for the fish to review
+POST ip:5000/fishtank_api/fish/import             the csv as text/csv, only the columns in it change, an empty cell clears an
+                                                  optional field; ?dry_run=true answers what would change, row by row,
+                                                  without it every row is applied, or none when any row has an error
+```
+
+Every change admins make (fish, retiring, pictures, roles, suggestions, imports) is in the audit log:
+
+```
+GET ip:5000/fishtank_api/audit   (admins) newest first, ?fish_id= for one fish, ?before=<event id> for the next page, ?limit= up to 200
+                                 each event has username, action, fish_id, target_user_id and details, e.g. the changed fields
+                                 as {"field": {"from": ..., "to": ...}}
+```
+
 ## Functions to add
 Given a fish or a group of fish, determine the maximum fish species that the fishtank can hold(requires background in optimization), target method: maximize_diversity_given_fish in [fishtank.py](./fishtank/simulation/fishtank.py)    
 fuzzy search(difficult, might make more sense to put into frontend)
@@ -266,8 +318,12 @@ The data in data/fish.db is not covered by the MIT License:
 * Fish with data_source "FishBase 25.04", the FishBase species codes and all pictures come from FishBase and are licensed
   under [Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)](https://creativecommons.org/licenses/by-nc/4.0/),
   they may only be used for non-commercial purposes, clearly identified as coming from FishBase, with a link to the source page
-* Pictures are only linked, each keeps its own copyright, only pictures marked for free use, non-commercial use or public domain
-  are linked, and each must be shown with its credit ("author, from FishBase")
+* Pictures are only linked, each keeps its own copyright and must be shown with its credit and a link to its page (source_url)
+* Pictures with source "FishBase": only those marked for free use, non-commercial use or public domain, credited
+  "author, from FishBase"
+* Pictures with source "Wikimedia Commons", "iNaturalist" or "GBIF": only those under a licence that allows showing them with a
+  credit (public domain, CC0, CC BY, CC BY-SA, GFDL, and on iNaturalist and GBIF also the non-commercial and no-derivatives
+  Creative Commons licences), credited "author, licence, via source"
 * Fish with data_source "aqua-fish.net" come from <https://en.aqua-fish.net/>, © Aqua-Fish.Net, all rights reserved
 
 ## Acknowledgments
@@ -277,6 +333,7 @@ The data in data/fish.db is not covered by the MIT License:
   Froese, R. and D. Pauly. Editors. 2025. FishBase. World Wide Web electronic publication. www.fishbase.org, version (04/2025).
   Data taken from FishBase should also be credited by the Main Ref. and/or Data Ref. of the respective record,
   see <https://www.fishbase.se/summary/citation.php>
-* Pictures are credited to their photographers on every picture, as recorded by FishBase
+* Pictures are credited to their photographers on every picture, as recorded by FishBase, Wikimedia Commons, iNaturalist
+  or GBIF. They were found through Wikidata, the iNaturalist api and the GBIF api
 * The FishBase release was read from the parquet tables that Carl Boettiger publishes for
   [rfishbase](https://github.com/ropensci/rfishbase) at <https://huggingface.co/datasets/cboettig/fishbase>

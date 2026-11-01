@@ -5,6 +5,7 @@ import { IN_SPECIES_TEXT, crossSpeciesSummary, displayName, isSoloOnly, tankLeve
 import { AddToTank } from './AddToTank'
 import { FishImage } from './FishArt'
 import { TemperamentBadge } from './FishBadges'
+import { SuggestTemperament } from './SuggestTemperament'
 import { Badge, RangeBar } from './ui'
 
 // scales wide enough for every fish in the catalogue, so two fish can be compared by eye
@@ -52,8 +53,9 @@ export function FishDetail({ fish, actions = true }: { fish: Fish; actions?: boo
               Photo: {picture.credit} ·{' '}
               <a href={picture.source_url} target="_blank" rel="noreferrer" className="underline hover:text-ink">
                 source
-              </a>{' '}
-              · {picture.licence}
+              </a>
+              {/* Commons and iNaturalist credits name their licence already */}
+              {picture.source === 'FishBase' && ` · ${picture.licence}`}
             </figcaption>
             {fish.pictures.length > 1 && (
               <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
@@ -92,6 +94,7 @@ export function FishDetail({ fish, actions = true }: { fish: Fish; actions?: boo
           Its temperament is not known yet, so it can only be kept alone: one fish in a tank.
         </p>
       )}
+      {isSoloOnly(fish) && !fish.retired && actions && <SuggestTemperament fish={fish} />}
 
       <section className="space-y-2">
         <h3 className="text-xs font-semibold tracking-wide text-muted uppercase">Behaviour</h3>

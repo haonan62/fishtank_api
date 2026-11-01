@@ -38,9 +38,16 @@ class ApiTest(ApiTestCase):
         pictures = [picture for fish in all_fish.values() for picture in fish['pictures']]
         self.assertTrue(pictures)
         for picture in pictures:
-            self.assertTrue(picture['url'].startswith('https://www.fishbase.se/images/species/'))
-            self.assertTrue(picture['credit'].endswith('from FishBase'))
-            self.assertIn(picture['licence'], ('free use', 'non-commercial use', 'public domain'))
+            self.assertTrue(picture['url'].startswith('https://'))
+            self.assertTrue(picture['source_url'].startswith('https://'))
+            if picture['source'] == 'FishBase':
+                self.assertTrue(picture['url'].startswith('https://www.fishbase.se/images/species/'))
+                self.assertTrue(picture['credit'].endswith('from FishBase'))
+                self.assertIn(picture['licence'], ('free use', 'non-commercial use', 'public domain'))
+            else:
+                self.assertIn(picture['source'], ('Wikimedia Commons', 'iNaturalist', 'GBIF'))
+                self.assertTrue(picture['credit'].endswith(', via ' + picture['source']))
+                self.assertIn(picture['licence'], picture['credit'])
 
     def test_fish_list_is_by_id(self):
         fish = self.call('GET', '/fish', expected_status=200).get_json()['fish']

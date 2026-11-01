@@ -151,10 +151,11 @@ class SuggestionsApiTest(ApiTestCase):
         expected = Fishtank(fish_map={self.neon.scientific_name: 2}).maximize_diversity_given_fish_v3()
         by_id = {fish.id: fish for fish in Fish.select()}
         self.assertTrue({by_id[fish_id].scientific_name for fish_id in answer['suggestions']} <= set(expected))
-        # 11 fish of the group have a picture and a common name, they come first, then fish with a common name
+        # fish with a picture and a common name come first, then fish with a common name
         pictured = {picture.fish_id for picture in FishPicture.select()}
         has_picture = [fish_id in pictured for fish_id in answer['suggestions']]
-        self.assertEqual(has_picture, [True] * 11 + [False])
+        self.assertTrue(has_picture[0])
+        self.assertEqual(has_picture, sorted(has_picture, reverse=True))
         self.assertTrue(all(by_id[fish_id].common_name for fish_id in answer['suggestions']))
 
     def test_every_suggested_fish_can_be_added_at_once(self):

@@ -1,7 +1,8 @@
-from flask import Blueprint
+from flask import Blueprint, g
 
 from fishtank.api.common import ApiError, admin_required, json_body, reject_unknown_fields, success
 from fishtank.db import database
+from fishtank.models.review import AuditEvent
 from fishtank.models.user import ROLE_ADMIN, ROLES, User
 
 blueprint = Blueprint('users', __name__)
@@ -12,11 +13,15 @@ class LastAdminError(Exception):
 
 
 # changes the role of a user, there is always at least one admin left
-def change_role(user, role):
+# changed_by is the admin who changes it, None from the command line
+def change_role(user, role, changed_by=None):
     with database.atomic('IMMEDIATE'):
         if user.role == ROLE_ADMIN and role != ROLE_ADMIN and \
                 User.select().where(User.role == ROLE_ADMIN).count() <= 1:
             raise LastAdminError('{} is the last admin'.format(user.username))
+        if user.role != role:
+            AuditEvent.record(changed_by, 'user.role', target_user_id=user.id,
+                              details={'username': user.username, 'from': user.role, 'to': role})
         user.role = role
         user.save()
 
@@ -48,7 +53,7 @@ def update_user(user_id):
     if user is None:
         raise ApiError('no such user', 404)
     try:
-        change_role(user, payload['role'])
+        change_role(user, payload['role'], g.user)
     except LastAdminError as e:
         raise ApiError(str(e), 409)
     return success(user=user.to_dic())

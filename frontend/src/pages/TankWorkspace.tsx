@@ -17,6 +17,7 @@ import { ApiError, api } from '../api/client'
 import type { Compatibility, Fish, Fishtank, Suggestions, TankSize } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 import { Aquarium } from '../components/Aquarium'
+import { ShareDialog, skippedDetail } from '../components/ShareTank'
 import { StockingPanel } from '../components/StockingPanel'
 import { FishArt } from '../components/FishArt'
 import { FishPanel } from '../components/FishDetail'
@@ -158,13 +159,19 @@ export function TankWorkspace() {
     [compatibility],
   )
 
-  const change = async (action: 'add' | 'remove', ids: number[]) => {
+  // every change to the fish, so it can be undone, most recent last
+  const [history, setHistory] = useState<{ action: 'add' | 'remove'; ids: number[] }[]>([])
+  useEffect(() => setHistory([]), [key])
+
+  const change = async (action: 'add' | 'remove', ids: number[], undoing = false) => {
     if (!tank || ids.length === 0) return
     setBusy(true)
     try {
       const updated = action === 'add' ? await api.addFish(tank.key, ids) : await api.removeFish(tank.key, ids)
       setTank(updated)
       refreshCompatibility()
+      if (undoing) setHistory((current) => current.slice(0, -1))
+      else setHistory((current) => [...current.slice(-49), { action, ids }])
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : String(reason)
       const refused = reason instanceof ApiError && (reason.status === 422 || reason.status === 409)
@@ -172,6 +179,47 @@ export function TankWorkspace() {
       toast({ tone: 'danger', title: refused ? alarmTitle(message, byId.get(ids[0]!)) : 'Something went wrong', detail: message })
     } finally {
       setBusy(false)
+    }
+  }
+
+  // undoing an add takes the same fish out, undoing a removal puts them back, they lived together before
+  const undo = () => {
+    const last = history[history.length - 1]
+    if (last && !busy) change(last.action === 'add' ? 'remove' : 'add', last.ids, true)
+  }
+  const lastChange = history[history.length - 1]
+  const undoLabel = lastChange
+    ? `Undo: ${lastChange.action === 'add' ? 'added' : 'took out'} ${lastChange.ids.length} ${
+        byId.get(lastChange.ids[0]!) ? displayName(byId.get(lastChange.ids[0]!)!) : 'fish'
+      }`
+    : 'Nothing to undo'
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const typing = event.target instanceof HTMLElement && event.target.closest('input, textarea, select, [contenteditable]')
+      if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === 'z' && !typing) {
+        event.preventDefault()
+        undo()
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  })
+
+  const [sharing, setSharing] = useState(false)
+  const [copying, setCopying] = useState(false)
+  const copy = async () => {
+    if (!tank) return
+    setCopying(true)
+    try {
+      const { fishtank: copied, skipped } = await api.copyTank(tank.key)
+      if (!copied.saved) rememberVisitorTank(copied.key)
+      toast({ tone: 'success', title: 'Copied, this is your new tank', detail: skippedDetail(skipped) })
+      navigate(`/tanks/${copied.key}`)
+    } catch (reason) {
+      toast({ tone: 'danger', title: 'Could not copy the tank', detail: reason instanceof Error ? reason.message : undefined })
+    } finally {
+      setCopying(false)
     }
   }
 
@@ -284,12 +332,21 @@ export function TankWorkspace() {
             {tank.size.length} × {tank.size.width} × {tank.size.height} cm
           </button>
           {tank.saved ? <Badge tone="ok">Saved</Badge> : <Badge tone="warn">Not saved</Badge>}
-          <div className="ml-auto flex gap-2">
+          <div className="ml-auto flex flex-wrap gap-2">
+            <Button variant="ghost" size="sm" disabled={!lastChange || busy} onClick={undo} title={`${undoLabel} (Ctrl+Z)`} aria-label={undoLabel}>
+              ↶ Undo
+            </Button>
             {user && (
               <Link to="/my-tanks" className={buttonClasses('ghost', 'sm')}>
                 All my tanks
               </Link>
             )}
+            <Button variant="secondary" size="sm" onClick={() => setSharing(true)}>
+              {tank.share_token ? 'Shared' : 'Share'}
+            </Button>
+            <Button variant="secondary" size="sm" busy={copying} onClick={copy}>
+              Copy
+            </Button>
             <Button variant="secondary" size="sm" onClick={() => setConfirmingDelete(true)}>
               Remove tank
             </Button>
@@ -390,6 +447,7 @@ export function TankWorkspace() {
 
       <FishPanel fish={openFish} onClose={() => setOpenFish(null)} />
       {editingSize && <SizeDialog size={tank.size} onClose={() => setEditingSize(false)} onSave={(size) => update({ size })} />}
+      {sharing && <ShareDialog tank={tank} onClose={() => setSharing(false)} onChange={setTank} />}
       <ConfirmDialog
         open={confirmingDelete}
         title="Remove this tank?"

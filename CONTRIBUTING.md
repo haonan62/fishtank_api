@@ -50,6 +50,7 @@ fishtank/                 the app, one python package
   db.py                   the peewee database, BaseModel, time helpers, setting up the app's database
   migrations.py           versioned schema upgrades (sqlite user_version), python -m fishtank.migrations
   fishbase_import.py      imports a FishBase release into a copy of the database
+  picture_import.py       finds licensed pictures for fish without one (Wikimedia Commons, iNaturalist, GBIF)
   api/                    http layer, one Flask blueprint per resource
     common.py             ApiError, json helpers, login_required / admin_required, the current user,
                           session cookies and csrf, check_rate_limit
@@ -57,11 +58,13 @@ fishtank/                 the app, one python package
     fish.py               /fish: listing for everyone, create / change / remove for admins
     fishtanks.py          /fishtanks: create, simulate (add / remove fish), save
     users.py              /users: admins list users and change roles
+    review.py             suggestions from users, the catalogue as csv, the audit log
   models/                 database tables (peewee models)
     fish.py               Fish and FishPicture, including the compatibility rules between two fish
     user.py               User and AuthToken
     rate_limit.py         RateLimit, attempts counted in the database, and the limits of the app
-    fishtank_record.py    a stored fishtank and the fish in it
+    fishtank_record.py    a stored fishtank and the fish in it, sharing and copying it
+    review.py             temperament suggestions from users and the audit log of admin changes
   simulation/             the fishtank logic, no http or storage concerns
     fishtank.py           Fishtank: adding / removing fish with checks, the maximum diversity search
     stocking.py           how full a tank is, and advice on schooling groups and room to swim

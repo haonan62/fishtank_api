@@ -53,13 +53,18 @@ def create_fishtank():
     reject_unknown_fields(payload, {'name', 'size'})
     name = read_name(payload) if 'name' in payload else None
     size = read_size(payload) if 'size' in payload else DEFAULT_SIZE
+    limit_visitor_tanks()
+    FishtankRecord.remove_expired()
+    record = FishtankRecord.create_for(g.user, name=name, size=size)
+    return success(201, fishtank=record.to_dic())
+
+
+# visitors build tanks without an account, a copy counts as a new tank as well
+def limit_visitor_tanks():
     if g.user is None:
         check_rate_limit(VISITOR_TANKS_PER_IP, client_ip(), 'You have built a lot of tanks in a short time, '
                                                             'please try again in {} or log in to build more')
         VISITOR_TANKS_PER_IP.hit(client_ip())
-    FishtankRecord.remove_expired()
-    record = FishtankRecord.create_for(g.user, name=name, size=size)
-    return success(201, fishtank=record.to_dic())
 
 
 # the saved fishtanks of the logged in user, latest change first
@@ -188,3 +193,54 @@ def suggest_companions(key):
                              [fish_dao.all_fish[name] for name in search.species], pictured_ids)
     return success(suggestions=[fish.id for fish in ranked[:int(limit)]], group_size=len(ranked),
                    complete=search.complete)
+
+
+# Sharing gives a fishtank a read only link (/shared/<token>), its key stays private, sharing again keeps the same link
+@blueprint.route('/fishtanks/<key>/share', methods=['POST'])
+def share_fishtank(key):
+    with database.atomic():
+        record = find_fishtank(key)
+        record.share()
+        record.save()
+    return success(fishtank=record.to_dic())
+
+
+# the shared link stops working, sharing again makes a new one
+@blueprint.route('/fishtanks/<key>/share', methods=['DELETE'])
+def stop_sharing_fishtank(key):
+    with database.atomic():
+        record = find_fishtank(key)
+        record.stop_sharing()
+        record.save()
+    return success(fishtank=record.to_dic())
+
+
+@blueprint.route('/shared/<token>')
+def get_shared_fishtank(token):
+    record = FishtankRecord.find_shared(token)
+    if record is None:
+        raise ApiError('this fishtank is not shared anymore', 404)
+    return success(fishtank=record.shared_dic())
+
+
+# A copy belongs to whoever makes it: saved for a logged in user, a visitor's tank otherwise
+# Retired fish are left out of the copy, skipped names them
+def copy_answer(record):
+    limit_visitor_tanks()
+    with database.atomic():
+        copy, skipped = record.copy_for(g.user)
+    return success(201, fishtank=copy.to_dic(), skipped=[{'id': fish.id, 'scientific_name': fish.scientific_name,
+                                                         'common_name': fish.common_name} for fish in skipped])
+
+
+@blueprint.route('/fishtanks/<key>/copy', methods=['POST'])
+def copy_fishtank(key):
+    return copy_answer(find_fishtank(key))
+
+
+@blueprint.route('/shared/<token>/copy', methods=['POST'])
+def copy_shared_fishtank(token):
+    record = FishtankRecord.find_shared(token)
+    if record is None:
+        raise ApiError('this fishtank is not shared anymore', 404)
+    return copy_answer(record)

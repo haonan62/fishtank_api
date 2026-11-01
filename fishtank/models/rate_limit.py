@@ -58,4 +58,6 @@ FAILED_LOGINS_PER_IP = RateLimit('failed_login_ip', 20, timedelta(minutes=15))
 REGISTRATIONS_PER_IP = RateLimit('register_ip', 10, timedelta(hours=1))
 # visitors need no account to create fishtanks, which would otherwise let one script fill the database
 VISITOR_TANKS_PER_IP = RateLimit('visitor_tank_ip', 30, timedelta(hours=1))
+# users suggest temperaments for admins to review, a generous limit keeps the review list readable
+SUGGESTIONS_PER_USER = RateLimit('suggestion_user', 30, timedelta(hours=1))
 

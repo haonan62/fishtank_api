@@ -135,7 +135,7 @@ export function Footer() {
           <a href="https://en.aqua-fish.net/" target="_blank" rel="noreferrer" className="underline hover:text-ink">
             aqua-fish.net
           </a>
-          . Photos are credited to their photographers, from FishBase.
+          . Photos from FishBase, Wikimedia Commons and iNaturalist, each credited to its photographer with its licence.
         </p>
       </div>
     </footer>

@@ -39,12 +39,14 @@ export function AdminFishList({ review = false }: { review?: boolean }) {
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<Status>('active')
   const [source, setSource] = useState('')
+  // the fish no picture was found for, an admin can add one on the fish's page
+  const [withoutPhoto, setWithoutPhoto] = useState(false)
   const [sort, setSort] = useState<SortKey>(review ? 'name' : 'id')
   const [page, setPage] = useState(0)
 
   useEffect(() => {
     setPage(0)
-  }, [search, status, source, sort, review])
+  }, [search, status, source, sort, review, withoutPhoto])
   useEffect(() => setSort(review ? 'name' : 'id'), [review])
 
   const sources = useMemo(() => [...new Set(fish.map((entry) => entry.data_source))].sort(), [fish])
@@ -55,10 +57,11 @@ export function AdminFishList({ review = false }: { review?: boolean }) {
           (entry) =>
             matchesSearch(entry, search) &&
             (review ? !entry.retired && isSoloOnly(entry) : status === 'all' || (status === 'retired') === entry.retired) &&
-            (!source || entry.data_source === source),
+            (!source || entry.data_source === source) &&
+            (!withoutPhoto || entry.pictures.length === 0),
         )
         .sort(SORTERS[sort]),
-    [fish, search, status, source, sort, review],
+    [fish, search, status, source, sort, review, withoutPhoto],
   )
   const pages = Math.max(1, Math.ceil(results.length / PAGE_SIZE))
   const visible = results.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
@@ -96,6 +99,15 @@ export function AdminFishList({ review = false }: { review?: boolean }) {
             </option>
           ))}
         </select>
+        <label className="flex items-center gap-2 text-sm text-muted sm:col-span-3">
+          <input
+            type="checkbox"
+            checked={withoutPhoto}
+            onChange={(event) => setWithoutPhoto(event.target.checked)}
+            className="size-4 accent-[var(--color-brand)]"
+          />
+          Without a photo ({fish.filter((entry) => !entry.retired && entry.pictures.length === 0).length.toLocaleString()} in the catalogue)
+        </label>
       </div>
 
       {error && <ErrorNotice message={error} onRetry={reload} />}

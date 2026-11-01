@@ -162,8 +162,10 @@ class CompressionTest(ApiTestCase):
         response = self.client.get('/fishtank_api/fish', headers={'Accept-Encoding': 'gzip, deflate'})
         self.assertEqual(response.headers['Content-Encoding'], 'gzip')
         self.assertIn('Accept-Encoding', response.headers['Vary'])
-        self.assertIn(b'"scientific_name"', gzip.decompress(response.data))
-        self.assertLess(len(response.data), 100000)
+        raw = gzip.decompress(response.data)
+        self.assertIn(b'"scientific_name"', raw)
+        # the catalogue is repetitive json, it shrinks to well under a fifth
+        self.assertLess(len(response.data), len(raw) / 5)
 
     def test_not_gzipped_unless_asked_or_small(self):
         self.assertNotIn('Content-Encoding', self.client.get('/fishtank_api/fish').headers)

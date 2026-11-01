@@ -18,6 +18,9 @@ export interface AdminData {
   reload: () => void
   // after a change the public catalogue is loaded again as well
   changed: (fish?: Fish) => void
+  // suggestions from users waiting for review
+  pendingSuggestions: number
+  refreshSuggestions: () => void
 }
 
 export function useAdminData() {
@@ -65,6 +68,15 @@ function AdminPortal() {
 
   const reviewCount = fish.filter((entry) => !entry.retired && isSoloOnly(entry)).length
 
+  const [pendingSuggestions, setPendingSuggestions] = useState(0)
+  const refreshSuggestions = useCallback(() => {
+    api
+      .listSuggestions('pending')
+      .then((answer) => setPendingSuggestions(answer.pending))
+      .catch(() => undefined)
+  }, [])
+  useEffect(refreshSuggestions, [refreshSuggestions])
+
   return (
     <div className="flex min-h-dvh flex-col bg-bg lg:flex-row">
       <aside className="border-b border-line bg-surface lg:sticky lg:top-0 lg:h-dvh lg:w-64 lg:shrink-0 lg:border-r lg:border-b-0">
@@ -82,6 +94,16 @@ function AdminPortal() {
             Needs review
             {reviewCount > 0 && <span className="rounded-full bg-warn-soft px-2 text-xs text-warn">{reviewCount}</span>}
           </NavLink>
+          <NavLink to="/admin/suggestions" className={linkClasses}>
+            Suggestions
+            {pendingSuggestions > 0 && <span className="rounded-full bg-brand-soft px-2 text-xs text-brand-strong">{pendingSuggestions}</span>}
+          </NavLink>
+          <NavLink to="/admin/import" className={linkClasses}>
+            Import / export
+          </NavLink>
+          <NavLink to="/admin/activity" className={linkClasses}>
+            Activity
+          </NavLink>
           <NavLink to="/admin/users" className={linkClasses}>
             Users
           </NavLink>
@@ -91,7 +113,7 @@ function AdminPortal() {
         </nav>
       </aside>
       <main className="min-w-0 flex-1 px-4 py-8 sm:px-8">
-        <Outlet context={{ fish, loading, error, reload, changed } satisfies AdminData} />
+        <Outlet context={{ fish, loading, error, reload, changed, pendingSuggestions, refreshSuggestions } satisfies AdminData} />
       </main>
     </div>
   )

@@ -7,7 +7,9 @@ import { useToast } from '../../components/Toasts'
 import { Badge, Button, ConfirmDialog, EmptyState, LoadingBlock, TextField, inputClasses } from '../../components/ui'
 import { CROSS_SPECIES_TEXT, IN_SPECIES_TEXT, displayName } from '../../lib/fish'
 import { FishCard } from '../Catalogue'
+import { ActivityList } from './AdminActivity'
 import { useAdminData } from './AdminLayout'
+import { FishPictures } from './FishPictures'
 
 // The form keeps every value as typed, as text, and turns it into api values on saving
 type FieldName =
@@ -227,6 +229,8 @@ export function AdminFishForm() {
   const [saving, setSaving] = useState(false)
   const [lifecycleBusy, setLifecycleBusy] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
+  // the history below reloads after every change made here
+  const [historyVersion, setHistoryVersion] = useState(0)
   const form = useRef<HTMLFormElement>(null)
 
   // load the fish into the form once, a save then keeps what the admin sees
@@ -275,6 +279,7 @@ export function AdminFishForm() {
     try {
       const saved = editing && fish ? await api.updateFish(fish.id, payloadOf(values, initial)) : await api.createFish(payloadOf(values, null))
       changed(saved)
+      setHistoryVersion((current) => current + 1)
       loadedId.current = null
       toast({ tone: 'success', title: editing ? `${displayName(saved)} saved` : `${displayName(saved)} added to the catalogue` })
       if (!editing) navigate(`/admin/fish/${saved.id}`, { replace: true })
@@ -303,6 +308,7 @@ export function AdminFishForm() {
       }
       const updated = action === 'retire' ? await api.retireFish(fish.id) : await api.restoreFish(fish.id)
       changed(updated)
+      setHistoryVersion((current) => current + 1)
       toast({
         tone: 'success',
         title: action === 'retire' ? `${displayName(fish)} is retired` : `${displayName(fish)} is back in the catalogue`,
@@ -355,6 +361,7 @@ export function AdminFishForm() {
       </header>
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="space-y-6">
         <form ref={form} onSubmit={submit} noValidate className="space-y-6">
           {fish && tanks > 0 && (
             <p className="rounded-xl bg-warn-soft px-4 py-3 text-sm text-warn">
@@ -437,6 +444,16 @@ export function AdminFishForm() {
             </Button>
           </div>
         </form>
+          {fish && (
+            <FishPictures
+              fish={fish}
+              onChange={(updated) => {
+                changed(updated)
+                setHistoryVersion((current) => current + 1)
+              }}
+            />
+          )}
+        </div>
 
         <aside className="space-y-6 lg:sticky lg:top-8 lg:self-start">
           <div>
@@ -472,6 +489,15 @@ export function AdminFishForm() {
                   Remove for good
                 </Button>
                 {tanks > 0 && <p className="text-xs text-muted">A fish living in tanks cannot be removed. Retire it instead.</p>}
+              </div>
+            </section>
+          )}
+
+          {fish && (
+            <section className="rounded-2xl border border-line bg-surface p-5">
+              <h2 className="font-display text-lg">History</h2>
+              <div className="mt-1">
+                <ActivityList key={historyVersion} fishId={fish.id} compact />
               </div>
             </section>
           )}

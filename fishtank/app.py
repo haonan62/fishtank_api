@@ -6,7 +6,7 @@ from werkzeug.exceptions import HTTPException
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import safe_join
 
-from fishtank.api import auth, fish, fishtanks, users
+from fishtank.api import auth, fish, fishtanks, review, users
 from fishtank.api.common import ApiError, clear_session_cookies, error_response, load_current_user
 from fishtank.cli import register_commands
 from fishtank.db import DEFAULT_APP_DATABASE, database, prepare_database, use_database
@@ -26,7 +26,8 @@ CONTENT_SECURITY_POLICY = '; '.join([
     "script-src 'self'",
     "style-src 'self' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
-    "img-src 'self' data: https://www.fishbase.se",
+    # pictures are linked from FishBase, Wikimedia Commons, iNaturalist and the collections GBIF links to
+    "img-src 'self' data: https:",
     "connect-src 'self'",
     "object-src 'none'",
     "base-uri 'self'",
@@ -64,7 +65,7 @@ def create_app(database_path=None):
     def api_root():
         return 'Welcome to fishtank api'
 
-    for module in (auth, fish, fishtanks, users):
+    for module in (auth, fish, fishtanks, review, users):
         app.register_blueprint(module.blueprint, url_prefix=API_PREFIX)
 
     @app.before_request
