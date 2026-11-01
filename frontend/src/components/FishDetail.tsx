@@ -98,6 +98,7 @@ export function FishDetail({ fish, actions = true }: { fish: Fish; actions?: boo
         <ul className="space-y-1 text-sm">
           <li>{crossSpeciesSummary(fish)}</li>
           <li>{IN_SPECIES_TEXT[fish.in_species_temperament]}</li>
+          {fish.minimum_group_size !== null && <li>A schooling fish, keep at least {fish.minimum_group_size} together</li>}
           <li>Swims in the {level} of the tank</li>
         </ul>
       </section>

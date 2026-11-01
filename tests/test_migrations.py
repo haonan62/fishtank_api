@@ -315,7 +315,7 @@ class FishModelTest(unittest.TestCase):
                          'maximum_temperature', 'reproduce_method', 'origin', 'in_species_temperament',
                          'cross_species_temperament', 'fishtank_position'}
         dic = fish.to_dic()
-        self.assertEqual(set(dic), previous_keys | {'id', 'data_source', 'fishbase_spec_code', 'fishbase_url', 'retired', 'pictures'})
+        self.assertEqual(set(dic), previous_keys | {'id', 'data_source', 'fishbase_spec_code', 'fishbase_url', 'retired', 'pictures', 'minimum_group_size', 'group_size_source'})
         self.assertEqual(dic['id'], fish.id)
         self.assertEqual(dic['data_source'], 'aqua-fish.net')
         self.assertIsNotNone(fish.fishbase_spec_code)

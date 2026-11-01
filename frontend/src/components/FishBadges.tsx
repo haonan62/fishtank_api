@@ -19,6 +19,15 @@ export function TemperamentBadge({ fish }: { fish: Fish }) {
   )
 }
 
+export function SchoolBadge({ fish }: { fish: Fish }) {
+  if (fish.minimum_group_size === null) return null
+  return (
+    <Badge tone="brand" title={`A schooling fish, keep at least ${fish.minimum_group_size} together`}>
+      Groups of {fish.minimum_group_size}+
+    </Badge>
+  )
+}
+
 export function WaterBadges({ fish }: { fish: Fish }) {
   return (
     <>

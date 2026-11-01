@@ -50,6 +50,10 @@ export interface Fish {
   cross_species_temperament: CrossSpeciesTemperament
   fishtank_position: string | null
   fishbase_spec_code: number | null
+  // the smallest group a schooling fish feels safe in, null when not known or when it is happy alone
+  minimum_group_size: number | null
+  // 'Fishtank list' for the curated starting values, 'manual entry' once an admin sets it
+  group_size_source: string | null
   data_source: string
   fishbase_url: string | null
   retired: boolean
@@ -77,10 +81,32 @@ export interface Fishtank {
   size: TankSize
   saved: boolean
   fish: TankFish[]
+  // advice only, the api never refuses a fish because of these
+  stocking: Stocking
+  warnings: TankWarning[]
   created_at: string
   updated_at: string
   expires_at: string | null
 }
+
+export type StockingLevel = 'empty' | 'comfortable' | 'nearly full' | 'overstocked'
+
+// cm of adult fish against what the water holds comfortably, see fishtank/simulation/stocking.py
+export interface Stocking {
+  litres: number
+  net_litres: number
+  capacity_cm: number
+  fish_cm: number
+  share: number
+  level: StockingLevel
+  // fish without a known adult size, not counted in fish_cm
+  uncounted_fish: number
+}
+
+export type TankWarning =
+  | { kind: 'overstocked'; message: string }
+  | { kind: 'group'; fish_id: number; count: number; minimum: number; message: string }
+  | { kind: 'room'; fish_id: number; minimum_length: number; message: string }
 
 export type Role = 'user' | 'admin'
 
@@ -113,5 +139,5 @@ export interface Suggestions {
 
 // the fields an admin sends to create or change a fish
 export type FishInput = Partial<
-  Omit<Fish, 'id' | 'fishbase_url' | 'retired' | 'pictures' | 'fishtank_count'>
+  Omit<Fish, 'id' | 'fishbase_url' | 'retired' | 'pictures' | 'fishtank_count' | 'group_size_source'>
 >

@@ -8,7 +8,7 @@ import sys
 # so migrating an up to date database just copies it
 # Usage: python -m fishtank.migrations data/fish.db data/fish_migrated.db
 
-LATEST_VERSION = 5
+LATEST_VERSION = 6
 
 FISH_COLUMNS = ['scientific_name', 'common_name', 'family_name', 'size_min', 'size_max', 'ph_min', 'ph_max',
                 'water_hardness_min', 'water_hardness_max', 'temperature_min', 'temperature_max', 'reproduce_method',
@@ -155,8 +155,46 @@ def upgrade_to_version_5(connection):
     connection.execute('CREATE INDEX rate_limit_hit_bucket_key ON rate_limit_hit(bucket, key, created_at)')
 
 
+# Schooling and shoaling fish feel safe only in a group, 6 is the minimum most fishkeeping guides give for them
+# No open dataset records it per species: FishBase marks 2 of our fish as schooling (not even neon tetras),
+# ShoalBase (CC BY-NC-ND, no derivatives) has a handful of records for a few aquarium species
+# So the starting values come from this list of genera known for schooling or shoaling, admins adjust each fish
+SCHOOLING_GENERA = [
+    # characins: tetras, pencilfish, hatchetfish, silver dollars
+    'Alestopetersius', 'Aphyocharax', 'Arnoldichthys', 'Axelrodia', 'Carnegiella', 'Copella', 'Gasteropelecus',
+    'Gymnocorymbus', 'Hemigrammus', 'Hyphessobrycon', 'Inpaichthys', 'Metynnis', 'Moenkhausia', 'Myleus', 'Myloplus',
+    'Nannostomus', 'Nematobrycon', 'Paracheirodon', 'Petitella', 'Phenacogrammus', 'Pristella', 'Thayeria',
+    'Thoracocharax',
+    # cyprinids: rasboras, danios, barbs, white clouds
+    'Boraras', 'Brevibora', 'Celestichthys', 'Danio', 'Devario', 'Horadandia', 'Microdevario', 'Pethia', 'Puntigrus',
+    'Puntius', 'Rasbora', 'Rasbosoma', 'Tanichthys', 'Trigonostigma',
+    # loaches and catfish
+    'Ambastaia', 'Aspidoras', 'Botia', 'Brochis', 'Chromobotia', 'Corydoras', 'Otocinclus', 'Pangio', 'Scleromystax',
+    'Yasuhikotakia',
+    # rainbowfish, blue eyes, glassfish
+    'Chilatherina', 'Glossolepis', 'Iriatherina', 'Marosatherina', 'Melanotaenia', 'Parambassis', 'Pseudomugil',
+    'Telmatherina',
+]
+SCHOOLING_GROUP_SIZE = 6
+GROUP_SIZE_LIST_SOURCE = 'Fishtank list'
+
+
+# Version 6: the smallest group a fish feels safe in, and where that number comes from
+# Null when not known or when the fish is happy alone. Only fish that live peacefully with their own kind get one,
+# the simulation lets no second fish of any other species in, so a group could never be kept
+def upgrade_to_version_6(connection):
+    connection.execute('ALTER TABLE fish ADD COLUMN minimum_group_size int '
+                       'check (minimum_group_size is null or minimum_group_size between 2 and 50)')
+    connection.execute('ALTER TABLE fish ADD COLUMN group_size_source char(50)')
+    genus = "substr(scientific_name, 1, instr(scientific_name || ' ', ' ') - 1)"
+    connection.execute('''UPDATE fish SET minimum_group_size = ?, group_size_source = ?
+WHERE in_species_temperament = 'peaceful' AND cross_species_temperament != 'unknown' AND {} IN ({})'''.format(
+        genus, ', '.join(['?'] * len(SCHOOLING_GENERA))),
+        [SCHOOLING_GROUP_SIZE, GROUP_SIZE_LIST_SOURCE] + SCHOOLING_GENERA)
+
+
 UPGRADE_STEPS = {1: upgrade_to_version_1, 2: upgrade_to_version_2, 3: upgrade_to_version_3, 4: upgrade_to_version_4,
-                 5: upgrade_to_version_5}
+                 5: upgrade_to_version_5, 6: upgrade_to_version_6}
 
 
 def migrate(source_path, target_path):

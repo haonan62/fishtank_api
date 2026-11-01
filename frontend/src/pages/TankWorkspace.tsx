@@ -17,6 +17,7 @@ import { ApiError, api } from '../api/client'
 import type { Compatibility, Fish, Fishtank, Suggestions, TankSize } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 import { Aquarium } from '../components/Aquarium'
+import { StockingPanel } from '../components/StockingPanel'
 import { FishArt } from '../components/FishArt'
 import { FishPanel } from '../components/FishDetail'
 import {
@@ -335,6 +336,13 @@ export function TankWorkspace() {
 
           {/* not sticky, the suggestions can make it taller than the screen */}
           <aside className="space-y-6 lg:col-start-2 xl:col-start-3 xl:row-start-1 xl:self-start">
+            <StockingPanel
+              tank={tank}
+              byId={byId}
+              busy={busy}
+              onAddFish={(fish, count) => change('add', Array(count).fill(fish.id))}
+              onResize={() => setEditingSize(true)}
+            />
             <WaterPanel residents={residents} />
             <CompanionPanel
               suggestions={suggestions}
