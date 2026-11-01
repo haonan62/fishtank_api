@@ -19,7 +19,7 @@ dependencies = [
 
 [project.optional-dependencies]
 # only needed for python -m fishtank.fishbase_import
-fishbase = ["pyarrow==14.0.2"]
+fishbase = ["pyarrow==23.0.1"]
 
 [tool.setuptools.packages.find]
 include = ["fishtank*"]

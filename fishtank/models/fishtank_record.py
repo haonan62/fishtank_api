@@ -6,6 +6,7 @@ from peewee import *
 from fishtank.db import BaseModel, to_iso, utcnow
 from fishtank.models.fish import Fish
 from fishtank.simulation.fishtank import Fishtank
+from fishtank.simulation.stocking import assess_stocking, tank_warnings
 from fishtank.models.user import User
 
 DEFAULT_SIZE = (100, 100, 30)
@@ -93,13 +94,19 @@ class FishtankRecord(BaseModel):
             FishtankFish.insert_many(rows).execute()
 
     def to_dic(self):
+        entries = list(self.entries())
+        residents = [(entry.fish, entry.count) for entry in entries]
+        stocking = assess_stocking(self.size(), residents)
         return {
             'key': self.key,
             'name': self.name,
             'size': {'length': self.length, 'width': self.width, 'height': self.height},
             'saved': self.is_saved(),
             'fish': [{'id': entry.fish.id, 'scientific_name': entry.fish.scientific_name,
-                      'common_name': entry.fish.common_name, 'count': entry.count} for entry in self.entries()],
+                      'common_name': entry.fish.common_name, 'count': entry.count} for entry in entries],
+            # advice only, a fishtank can be crowded or keep a lonely schooling fish
+            'stocking': stocking,
+            'warnings': tank_warnings(self.size(), residents, stocking),
             'created_at': to_iso(self.created_at),
             'updated_at': to_iso(self.updated_at),
             'expires_at': to_iso(self.expires_at)

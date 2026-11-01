@@ -64,6 +64,7 @@ fishtank/                 the app, one python package
     fishtank_record.py    a stored fishtank and the fish in it
   simulation/             the fishtank logic, no http or storage concerns
     fishtank.py           Fishtank: adding / removing fish with checks, the maximum diversity search
+    stocking.py           how full a tank is, and advice on schooling groups and room to swim
     fishdao.py            Fishdao: all fish loaded from the database, by name and by id
     errors.py             the errors raised when fish cannot live together
 tests/                    unittest tests, run with python -m unittest

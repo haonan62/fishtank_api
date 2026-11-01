@@ -40,6 +40,9 @@ class Fish(BaseModel):
     fishbase_spec_code = IntegerField(null=True, unique=True)
     data_source = CharField()
     retired_at = DateTimeField(null=True)
+    # the smallest group a schooling fish feels safe in, null when not known or when it is happy alone
+    minimum_group_size = IntegerField(null=True)
+    group_size_source = CharField(null=True)
 
     def __str__(self):
         return self.scientific_name
@@ -73,6 +76,8 @@ class Fish(BaseModel):
             'cross_species_temperament': self.cross_species_temperament,
             'fishtank_position': self.fishtank_position,
             'data_source': self.data_source,
+            'minimum_group_size': self.minimum_group_size,
+            'group_size_source': self.group_size_source,
             'fishbase_spec_code': self.fishbase_spec_code,
             'fishbase_url': self.fishbase_url(),
             'retired': self.is_retired(),

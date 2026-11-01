@@ -34,11 +34,15 @@ FISH_FIELDS = {
     'cross_species_temperament': ('cross_species_temperament', CROSS_SPECIES_TEMPERAMENTS, True),
     'fishtank_position': ('fishtank_position', TEXT, False),
     'fishbase_spec_code': ('fishbase_spec_code', INTEGER, False),
+    'minimum_group_size': ('minimum_group_size', INTEGER, False),
     'data_source': ('data_source', TEXT, True),
 }
 # worked out by the api, pictures come from the FishBase import, retire and restore have their own endpoints
-READ_ONLY_FIELDS = {'id', 'fishbase_url', 'pictures', 'retired', 'fishtank_count'}
+READ_ONLY_FIELDS = {'id', 'fishbase_url', 'pictures', 'retired', 'fishtank_count', 'group_size_source'}
 DEFAULT_DATA_SOURCE = 'manual entry'
+# a group size an admin sets is theirs, the curated starting values say 'Fishtank list'
+MANUAL_GROUP_SIZE_SOURCE = 'manual entry'
+GROUP_SIZE_RANGE = (2, 50)
 TEXT_MAX_LENGTH = 100
 
 # (minimum, maximum, lowest allowed, highest allowed), None means no limit
@@ -96,6 +100,15 @@ def check_fish(values):
     if values['cross_species_temperament'] != UNKNOWN_TEMPERAMENT and values['minimum_size'] is None:
         raise ApiError('a fish with a known cross_species_temperament needs minimum_size and maximum_size',
                        field='minimum_size')
+    group_size = values['minimum_group_size']
+    if group_size is not None:
+        if not GROUP_SIZE_RANGE[0] <= group_size <= GROUP_SIZE_RANGE[1]:
+            raise ApiError('minimum_group_size must lie between {} and {}'.format(*GROUP_SIZE_RANGE),
+                           field='minimum_group_size')
+        # the simulation keeps a second fish of a species only when it is peaceful with its own kind
+        if values['in_species_temperament'] != 'peaceful' or values['cross_species_temperament'] == UNKNOWN_TEMPERAMENT:
+            raise ApiError('only a fish that is peaceful with its own kind and others can be kept in a group, '
+                           'clear minimum_group_size or change its temperament', field='minimum_group_size')
 
 
 # Returns the model fields to store, from the payload on top of the current values of the fish (None for a new fish)
@@ -125,7 +138,10 @@ def fish_fields_from_payload(payload, fish=None):
             (Fish.fishbase_spec_code == values['fishbase_spec_code']) & (Fish.id != fish_id)).exists():
         raise ApiError('a fish with FishBase species code {} already exists'.format(values['fishbase_spec_code']), 409,
                        field='fishbase_spec_code')
-    return {FISH_FIELDS[api_name][0]: value for api_name, value in values.items()}
+    fields = {FISH_FIELDS[api_name][0]: value for api_name, value in values.items()}
+    if 'minimum_group_size' in payload and (fish is None or values['minimum_group_size'] != fish.minimum_group_size):
+        fields['group_size_source'] = MANUAL_GROUP_SIZE_SOURCE if values['minimum_group_size'] is not None else None
+    return fields
 
 
 def find_fish(fish_id):

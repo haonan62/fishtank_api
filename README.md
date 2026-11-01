@@ -146,7 +146,9 @@ POST   ip:5000/fishtank_api/fish        adds a fish, with the fields of a fish a
        required: scientific_name, family_name, minimum/maximum_ph, minimum/maximum_water_hardness,
        minimum/maximum_temperature, in_species_temperament, cross_species_temperament
        optional: common_name, minimum/maximum_size, reproduce_method, origin, fishtank_position, fishbase_spec_code,
-       data_source (manual entry when left out)
+       data_source (manual entry when left out), minimum_group_size (2 to 50, the smallest group a schooling fish feels
+       safe in, only for a fish peaceful with its own kind and with a known temperament)
+       group_size_source is read only: Fishtank list for the starting values, manual entry once an admin sets it
        a minimum always comes with its maximum and is not larger, ph lies between 0 and 14, temperature between 0 and 45
        a fish whose cross_species_temperament is known needs a size
        in_species_temperament: peaceful, peaceful to males, peaceful to females, aggressive/territorial, unknown
@@ -190,8 +192,18 @@ A fishtank is answered as:
 ```
 {"key": ..., "name": ..., "size": {"length": 100, "width": 100, "height": 30}, "saved": true,
  "fish": [{"id": 11, "scientific_name": ..., "common_name": ..., "count": 2}],
+ "stocking": {"litres": 300.0, "net_litres": 255.0, "capacity_cm": 171.1, "fish_cm": 6, "share": 0.035,
+              "level": "comfortable", "uncounted_fish": 0},
+ "warnings": [{"kind": "group", "fish_id": 11, "count": 2, "minimum": 6, "message": ...}],
  "created_at": ..., "updated_at": ..., "expires_at": null for a saved fishtank}
 ```
+
+Stocking and warnings are advice, they never stop a fish from being added:
+- stocking counts the adult size of every fish (maximum_size x count) against what the water holds comfortably,
+  one inch of fish per US gallon (0.67 cm per litre) of 85% of the tank's volume (gravel and decoration take the rest);
+  level is empty, comfortable, nearly full (from 80%) or overstocked (above 100%), fish without a known size are uncounted_fish
+- warnings, most pressing first: "overstocked"; "group" when a schooling fish has fewer than its minimum_group_size;
+  "room" when the tank is shorter than 4 times a fish's adult length (minimum_length says how long it should be)
 
 ```
 POST ip:5000/fishtank_api/fishtanks/<key>/add      {"fish": list of fish ids}
@@ -245,6 +257,10 @@ There is also a separate branch for docker deployment, please refer to the branc
 ## License
 
 The code of this project is licensed under the MIT License
+
+The group sizes of schooling fish (group_size_source "Fishtank list") are this project's own starting values:
+6 for fish of genera known to school or shoal, the minimum most fishkeeping guides give. No open dataset records
+it per species, FishBase marks only 2 of our fish as schooling and ShoalBase (CC BY-NC-ND) cannot be adapted
 
 The data in data/fish.db is not covered by the MIT License:
 * Fish with data_source "FishBase 25.04", the FishBase species codes and all pictures come from FishBase and are licensed

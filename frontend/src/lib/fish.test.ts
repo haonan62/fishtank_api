@@ -24,6 +24,8 @@ function makeFish(overrides: Partial<Fish> = {}): Fish {
     cross_species_temperament: 'peaceful',
     fishtank_position: 'Bottom levels',
     fishbase_spec_code: null,
+    minimum_group_size: null,
+    group_size_source: null,
     data_source: 'aqua-fish.net',
     fishbase_url: null,
     retired: false,

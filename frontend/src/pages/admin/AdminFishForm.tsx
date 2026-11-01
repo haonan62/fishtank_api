@@ -28,6 +28,7 @@ type FieldName =
   | 'cross_species_temperament'
   | 'fishtank_position'
   | 'fishbase_spec_code'
+  | 'minimum_group_size'
   | 'data_source'
 
 type Values = Record<FieldName, string>
@@ -54,6 +55,7 @@ const FIELDS: Record<FieldName, { kind: Kind; required: boolean }> = {
   cross_species_temperament: { kind: 'choice', required: true },
   fishtank_position: { kind: 'text', required: false },
   fishbase_spec_code: { kind: 'integer', required: false },
+  minimum_group_size: { kind: 'integer', required: false },
   data_source: { kind: 'text', required: true },
 }
 
@@ -84,6 +86,7 @@ const EMPTY: Values = {
   cross_species_temperament: 'unknown',
   fishtank_position: '',
   fishbase_spec_code: '',
+  minimum_group_size: '',
   data_source: 'manual entry',
 }
 
@@ -130,6 +133,13 @@ export function validate(values: Values): Errors {
   if (values.cross_species_temperament !== 'unknown' && !values.minimum_size.trim() && !errors.minimum_size) {
     errors.minimum_size = 'Needed once the temperament is known, the check compares sizes'
   }
+  // the simulation keeps a second fish of a species only when it is peaceful with its own kind and known to others
+  const group = values.minimum_group_size.trim()
+  if (group && !errors.minimum_group_size) {
+    if (Number(group) < 2 || Number(group) > 50) errors.minimum_group_size = 'Between 2 and 50'
+    else if (values.in_species_temperament !== 'peaceful' || values.cross_species_temperament === 'unknown')
+      errors.minimum_group_size = 'Only for a fish peaceful with its own kind and with a known temperament, clear it otherwise'
+  }
   return errors
 }
 
@@ -167,6 +177,8 @@ function previewOf(values: Values, fish: Fish | null): Fish {
     cross_species_temperament: values.cross_species_temperament as Fish['cross_species_temperament'],
     fishtank_position: values.fishtank_position || null,
     fishbase_spec_code: null,
+    minimum_group_size: values.minimum_group_size ? number('minimum_group_size', 0) : null,
+    group_size_source: fish?.group_size_source ?? null,
     data_source: values.data_source,
     fishbase_url: fish?.fishbase_url ?? null,
     retired: fish?.retired ?? false,
@@ -391,6 +403,14 @@ export function AdminFishForm() {
               />
             </div>
             {pair('minimum_size', 'maximum_size', 'size', ' (cm)')}
+            {field('minimum_group_size', 'Smallest group', {
+              inputMode: 'numeric',
+              placeholder: 'e.g. 6',
+              hint:
+                fish?.group_size_source && values.minimum_group_size.trim() === (initial?.minimum_group_size ?? '').trim()
+                  ? `For schooling fish. Current value from: ${fish.group_size_source}`
+                  : 'For schooling fish, the tank warns when it keeps fewer. Leave empty for fish happy alone.',
+            })}
           </Section>
 
           <Section title="More about it">

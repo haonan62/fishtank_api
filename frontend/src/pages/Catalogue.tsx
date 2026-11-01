@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router'
 
 import type { Fish } from '../api/types'
 import { FishImage } from '../components/FishArt'
-import { TemperamentBadge, WaterBadges } from '../components/FishBadges'
+import { SchoolBadge, TemperamentBadge, WaterBadges } from '../components/FishBadges'
 import { FishPanel } from '../components/FishDetail'
 import { EMPTY_FILTER, FishFilters, filterFish, type FishFilter } from '../components/FishFilters'
 import { Button, EmptyState, ErrorNotice, LoadingBlock, inputClasses } from '../components/ui'
@@ -35,6 +35,7 @@ export function FishCard({ fish, onOpen }: { fish: Fish; onOpen: (fish: Fish) =>
         </div>
         <div className="mt-auto flex flex-wrap gap-1.5">
           <TemperamentBadge fish={fish} />
+          <SchoolBadge fish={fish} />
           <WaterBadges fish={fish} />
         </div>
       </div>
