@@ -1,12 +1,18 @@
 import type {
+  AuditEvent,
   Compatibility,
   Fish,
   FishInput,
   Fishtank,
+  ImportResult,
+  PictureInput,
   LoginAnswer,
   Role,
+  SharedFishtank,
+  SkippedFish,
   Suggestions,
   TankSize,
+  TemperamentSuggestion,
   User,
 } from './types'
 
@@ -75,9 +81,20 @@ export function setLoginExpiredHandler(handler: (() => void) | null) {
   onLoginExpired = handler
 }
 
+// a body sent as it is, e.g. a csv file, instead of as json
+export class RawBody {
+  text: string
+  type: string
+
+  constructor(text: string, type: string) {
+    this.text = text
+    this.type = type
+  }
+}
+
 async function request<T>(method: string, path: string, body?: unknown, retried = false): Promise<T> {
   const headers: Record<string, string> = {}
-  if (body !== undefined) headers['Content-Type'] = 'application/json'
+  if (body !== undefined) headers['Content-Type'] = body instanceof RawBody ? body.type : 'application/json'
   const csrf = readCookie(CSRF_COOKIE)
   if (csrf && !SAFE_METHODS.includes(method)) headers[CSRF_HEADER] = csrf
   const hadSession = csrf !== null
@@ -88,7 +105,7 @@ async function request<T>(method: string, path: string, body?: unknown, retried 
       method,
       headers,
       credentials: 'same-origin',
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : body instanceof RawBody ? body.text : JSON.stringify(body),
     })
   } catch {
     throw new ApiError('Cannot reach the fishtank server, please check your connection', 0)
@@ -107,6 +124,21 @@ async function request<T>(method: string, path: string, body?: unknown, retried 
     throw new ApiError(message, response.status, answer?.field ?? null, retryAfter)
   }
   return answer as T
+}
+
+// Saves a file the api answers with, e.g. the catalogue as csv, through the browser's own download
+async function download(path: string, fileName: string) {
+  const response = await fetch(PREFIX + path, { credentials: 'same-origin' })
+  if (!response.ok) {
+    const answer = await response.json().catch(() => null)
+    throw new ApiError(answer?.message ?? `Something went wrong (${response.status})`, response.status)
+  }
+  const url = URL.createObjectURL(await response.blob())
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName
+  link.click()
+  URL.revokeObjectURL(url)
 }
 
 export const api = {
@@ -165,4 +197,43 @@ export const api = {
   listUsers: () => request<{ users: User[] }>('GET', '/users').then((answer) => answer.users),
   setRole: (id: number, role: Role) =>
     request<{ user: User }>('PATCH', `/users/${id}`, { role }).then((answer) => answer.user),
+
+  shareTank: (key: string) =>
+    request<{ fishtank: Fishtank }>('POST', `/fishtanks/${encodeURIComponent(key)}/share`).then((answer) => answer.fishtank),
+  stopSharingTank: (key: string) =>
+    request<{ fishtank: Fishtank }>('DELETE', `/fishtanks/${encodeURIComponent(key)}/share`).then((answer) => answer.fishtank),
+  getSharedTank: (token: string) =>
+    request<{ fishtank: SharedFishtank }>('GET', `/shared/${encodeURIComponent(token)}`).then((answer) => answer.fishtank),
+  copyTank: (key: string) =>
+    request<{ fishtank: Fishtank; skipped: SkippedFish[] }>('POST', `/fishtanks/${encodeURIComponent(key)}/copy`),
+  copySharedTank: (token: string) =>
+    request<{ fishtank: Fishtank; skipped: SkippedFish[] }>('POST', `/shared/${encodeURIComponent(token)}/copy`),
+
+  suggestTemperament: (fishId: number, suggestion: Partial<TemperamentSuggestion>) =>
+    request<{ suggestion: TemperamentSuggestion }>('POST', `/fish/${fishId}/suggestions`, suggestion).then(
+      (answer) => answer.suggestion,
+    ),
+  listSuggestions: (status: 'pending' | 'approved' | 'rejected' | 'all' = 'pending') =>
+    request<{ suggestions: TemperamentSuggestion[]; pending: number }>('GET', `/suggestions?status=${status}`),
+  approveSuggestion: (id: number) =>
+    request<{ suggestion: TemperamentSuggestion; fish: Fish }>('POST', `/suggestions/${id}/approve`),
+  rejectSuggestion: (id: number) =>
+    request<{ suggestion: TemperamentSuggestion }>('POST', `/suggestions/${id}/reject`).then((answer) => answer.suggestion),
+
+  addPicture: (fishId: number, picture: PictureInput) =>
+    request<{ fish: Fish }>('POST', `/fish/${fishId}/pictures`, picture).then((answer) => answer.fish),
+  removePicture: (fishId: number, pictureId: number) =>
+    request<{ fish: Fish }>('DELETE', `/fish/${fishId}/pictures/${pictureId}`).then((answer) => answer.fish),
+
+  exportFish: (reviewOnly: boolean) =>
+    download(reviewOnly ? '/fish/export.csv?review=true' : '/fish/export.csv', reviewOnly ? 'fish-to-review.csv' : 'fish.csv'),
+  importFish: (csv: string, dryRun: boolean) =>
+    request<ImportResult>('POST', dryRun ? '/fish/import?dry_run=true' : '/fish/import', new RawBody(csv, 'text/csv')),
+
+  listAudit: (options: { fishId?: number; before?: number } = {}) => {
+    const params = new URLSearchParams()
+    if (options.fishId !== undefined) params.set('fish_id', String(options.fishId))
+    if (options.before !== undefined) params.set('before', String(options.before))
+    return request<{ events: AuditEvent[]; more: boolean }>('GET', `/audit?${params}`)
+  },
 }

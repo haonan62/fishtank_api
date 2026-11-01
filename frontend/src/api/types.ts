@@ -24,11 +24,14 @@ export const CROSS_SPECIES_TEMPERAMENTS: CrossSpeciesTemperament[] = [
 ]
 
 export interface Picture {
+  id: number
   url: string
   author: string | null
   licence: string
   credit: string
   source_url: string
+  // FishBase, Wikimedia Commons or iNaturalist
+  source: string
 }
 
 export interface Fish {
@@ -81,6 +84,8 @@ export interface Fishtank {
   size: TankSize
   saved: boolean
   fish: TankFish[]
+  // set while the tank is shared read only at /shared/<share_token>
+  share_token: string | null
   // advice only, the api never refuses a fish because of these
   stocking: Stocking
   warnings: TankWarning[]
@@ -141,3 +146,74 @@ export interface Suggestions {
 export type FishInput = Partial<
   Omit<Fish, 'id' | 'fishbase_url' | 'retired' | 'pictures' | 'fishtank_count' | 'group_size_source'>
 >
+
+// what an admin sends to link a picture to a fish
+export interface PictureInput {
+  url: string
+  source_url: string
+  licence: string
+  source: string
+  author: string | null
+}
+
+// a tank as the people it is shared with see it: no key, nothing that changes it
+export interface SharedFishtank {
+  share_token: string
+  name: string | null
+  owner: string | null
+  size: TankSize
+  fish: TankFish[]
+  stocking: Stocking
+  warnings: TankWarning[]
+  updated_at: string
+}
+
+// a retired fish left out of a copied tank
+export interface SkippedFish {
+  id: number
+  scientific_name: string
+  common_name: string | null
+}
+
+export interface TemperamentSuggestion {
+  id: number
+  fish_id: number
+  username: string | null
+  in_species_temperament: InSpeciesTemperament
+  cross_species_temperament: CrossSpeciesTemperament
+  minimum_size: number | null
+  maximum_size: number | null
+  minimum_group_size: number | null
+  note: string | null
+  status: 'pending' | 'approved' | 'rejected'
+  created_at: string
+  reviewed_by: string | null
+  reviewed_at: string | null
+  fish: Pick<Fish, 'id' | 'scientific_name' | 'common_name' | 'retired' | 'in_species_temperament' | 'cross_species_temperament'>
+}
+
+export interface ImportRow {
+  row: number
+  id: number | null
+  scientific_name: string | null
+  changes: Record<string, { from: unknown; to: unknown }>
+  error: string | null
+  field: string | null
+}
+
+export interface ImportResult {
+  rows: ImportRow[]
+  changed: number
+  errors: number
+  applied: boolean
+}
+
+export interface AuditEvent {
+  id: number
+  username: string | null
+  action: string
+  fish_id: number | null
+  target_user_id: number | null
+  details: Record<string, unknown> | null
+  created_at: string
+}

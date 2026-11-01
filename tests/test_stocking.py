@@ -189,13 +189,12 @@ class CuratedGroupSizeTest(unittest.TestCase):
         path = os.path.join(directory, 'fish.db')
         shutil.copyfile(SEED_DATABASE, path)
         connection = sqlite3.connect(path)
-        # back to version 5: same fish, no group size columns yet
+        # the fish as version 5 had them: no group size columns yet, then only the version 6 step
         connection.execute('ALTER TABLE fish DROP COLUMN group_size_source')
         connection.execute('ALTER TABLE fish DROP COLUMN minimum_group_size')
-        connection.execute('PRAGMA user_version = 5')
+        migrations.upgrade_to_version_6(connection)
         connection.commit()
         connection.close()
-        self.assertEqual(migrations.upgrade(path), 6)
         self.assertEqual(self.read('SELECT count(*) FROM fish WHERE minimum_group_size = 6', path), [(227,)])
         with self.assertRaises(sqlite3.IntegrityError):
             connection = sqlite3.connect(path)

@@ -24,8 +24,8 @@ function WarningRow({
   warning: TankWarning
   fish: Fish | undefined
   busy: boolean
-  onAddFish: (fish: Fish, count: number) => void
-  onResize: () => void
+  onAddFish?: (fish: Fish, count: number) => void
+  onResize?: () => void
 }) {
   const missing = warning.kind === 'group' ? warning.minimum - warning.count : 0
   return (
@@ -54,12 +54,12 @@ function WarningRow({
         ) : (
           <p>{warning.message}</p>
         )}
-        {warning.kind === 'group' && fish && !fish.retired && (
+        {warning.kind === 'group' && fish && !fish.retired && onAddFish && (
           <Button variant="secondary" size="sm" className="mt-2" disabled={busy} onClick={() => onAddFish(fish, missing)}>
             Add {missing} more
           </Button>
         )}
-        {(warning.kind === 'room' || warning.kind === 'overstocked') && (
+        {(warning.kind === 'room' || warning.kind === 'overstocked') && onResize && (
           <Button variant="secondary" size="sm" className="mt-2" onClick={onResize}>
             Change tank size
           </Button>
@@ -70,18 +70,19 @@ function WarningRow({
 }
 
 // How full the tank is and what its fish would miss, as advice: nothing here stops a fish from being added
+// Without onAddFish and onResize it only shows the advice, e.g. on a shared tank
 export function StockingPanel({
   tank,
   byId,
-  busy,
+  busy = false,
   onAddFish,
   onResize,
 }: {
-  tank: Fishtank
+  tank: Pick<Fishtank, 'stocking' | 'warnings'>
   byId: Map<number, Fish>
-  busy: boolean
-  onAddFish: (fish: Fish, count: number) => void
-  onResize: () => void
+  busy?: boolean
+  onAddFish?: (fish: Fish, count: number) => void
+  onResize?: () => void
 }) {
   const { stocking, warnings } = tank
   const level = LEVELS[stocking.level]

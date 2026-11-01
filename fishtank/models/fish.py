@@ -81,7 +81,8 @@ class Fish(BaseModel):
             'fishbase_spec_code': self.fishbase_spec_code,
             'fishbase_url': self.fishbase_url(),
             'retired': self.is_retired(),
-            'pictures': [picture.to_dic() for picture in self.pictures]
+            # the first picture is the one the catalogue shows
+            'pictures': [picture.to_dic() for picture in self.pictures.order_by(FishPicture.id)]
         }
     # important!!!! This is the function indicating whether a fish could coexist with another fish
     # if can, it will return a true
@@ -183,8 +184,15 @@ class Fish(BaseModel):
             raise Exception("The object is not fish")
 
 
-# A picture is not stored, only the url where it is hosted, the credit follows FishBase's terms:
-# full attribution to the person or organization and the indication 'from FishBase'
+PICTURE_SOURCE_FISHBASE = 'FishBase'
+PICTURE_SOURCE_COMMONS = 'Wikimedia Commons'
+PICTURE_SOURCE_INATURALIST = 'iNaturalist'
+PICTURE_SOURCE_GBIF = 'GBIF'
+
+
+# A picture is not stored, only the url where it is hosted, the credit follows the terms of its source:
+# FishBase asks for the person or organization and 'from FishBase', Wikimedia Commons and iNaturalist
+# for the author and the licence, with a link to the picture's page (source_url)
 class FishPicture(BaseModel):
     id = AutoField()
     fish = ForeignKeyField(Fish, backref='pictures', column_name='fish_id')
@@ -192,20 +200,23 @@ class FishPicture(BaseModel):
     author = TextField(null=True)
     licence = TextField()
     source_url = TextField()
+    source = CharField(default=PICTURE_SOURCE_FISHBASE)
 
     class Meta:
         table_name = 'fish_picture'
 
     def credit(self):
-        if self.author is None:
-            return 'from FishBase'
-        return '{}, from FishBase'.format(self.author)
+        if self.source == PICTURE_SOURCE_FISHBASE:
+            return 'from FishBase' if self.author is None else '{}, from FishBase'.format(self.author)
+        return '{}, {}, via {}'.format(self.author or 'Unknown author', self.licence, self.source)
 
     def to_dic(self):
         return {
+            'id': self.id,
             'url': self.url,
             'author': self.author,
             'licence': self.licence,
             'credit': self.credit(),
-            'source_url': self.source_url
+            'source_url': self.source_url,
+            'source': self.source
         }

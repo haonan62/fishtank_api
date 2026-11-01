@@ -4,9 +4,12 @@ import { AuthProvider } from './auth/AuthContext'
 import { Layout } from './components/Layout'
 import { ToastProvider } from './components/Toasts'
 import { CatalogueProvider } from './lib/catalogue'
+import { AdminActivity } from './pages/admin/AdminActivity'
 import { AdminFishForm } from './pages/admin/AdminFishForm'
 import { AdminFishList } from './pages/admin/AdminFishList'
+import { AdminImport } from './pages/admin/AdminImport'
 import { AdminLayout } from './pages/admin/AdminLayout'
+import { AdminSuggestions } from './pages/admin/AdminSuggestions'
 import { AdminUsers } from './pages/admin/AdminUsers'
 import { Account } from './pages/Account'
 import { Catalogue } from './pages/Catalogue'
@@ -14,6 +17,7 @@ import { FishPage } from './pages/FishPage'
 import { Home } from './pages/Home'
 import { NewTank, NotFound } from './pages/Misc'
 import { MyTanks } from './pages/MyTanks'
+import { SharedTank } from './pages/SharedTank'
 import { TankWorkspace } from './pages/TankWorkspace'
 
 export function App() {
@@ -31,6 +35,7 @@ export function App() {
                 <Route path="tanks/:key" element={<TankWorkspace />} />
                 <Route path="my-tanks" element={<MyTanks />} />
                 <Route path="account" element={<Account />} />
+                <Route path="shared/:token" element={<SharedTank />} />
                 <Route path="*" element={<NotFound />} />
               </Route>
               <Route path="admin" element={<AdminLayout />}>
@@ -39,6 +44,9 @@ export function App() {
                 <Route path="review" element={<AdminFishList review />} />
                 <Route path="fish/new" element={<AdminFishForm />} />
                 <Route path="fish/:id" element={<AdminFishForm />} />
+                <Route path="suggestions" element={<AdminSuggestions />} />
+                <Route path="import" element={<AdminImport />} />
+                <Route path="activity" element={<AdminActivity />} />
                 <Route path="users" element={<AdminUsers />} />
               </Route>
             </Routes>

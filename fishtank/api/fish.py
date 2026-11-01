@@ -3,10 +3,12 @@ import math
 from flask import Blueprint, g, request
 from peewee import IntegrityError, fn
 
-from fishtank.api.common import ApiError, admin_required, is_integer, json_body, success
+from fishtank.api.common import ApiError, admin_required, is_integer, json_body, reject_unknown_fields, success
 from fishtank.db import database, utcnow
-from fishtank.models.fish import CROSS_SPECIES_TEMPERAMENTS, IN_SPECIES_TEMPERAMENTS, UNKNOWN_TEMPERAMENT, Fish, FishPicture
+from fishtank.models.fish import (CROSS_SPECIES_TEMPERAMENTS, IN_SPECIES_TEMPERAMENTS, PICTURE_SOURCE_FISHBASE,
+                                  UNKNOWN_TEMPERAMENT, Fish, FishPicture)
 from fishtank.models.fishtank_record import FishtankFish, FishtankRecord
+from fishtank.models.review import AuditEvent
 
 blueprint = Blueprint('fish', __name__)
 
@@ -144,6 +146,22 @@ def fish_fields_from_payload(payload, fish=None):
     return fields
 
 
+# model field -> api name, for the audit log
+API_NAMES = {model_field: api_name for api_name, (model_field, _, _) in FISH_FIELDS.items()}
+API_NAMES['group_size_source'] = 'group_size_source'
+
+
+# Sets the fields on the fish and returns what changed, by api name: {name: {'from': old, 'to': new}}
+def apply_fish_fields(fish, fields):
+    changes = {}
+    for model_field, value in fields.items():
+        old = getattr(fish, model_field)
+        if old != value:
+            changes[API_NAMES[model_field]] = {'from': old, 'to': value}
+        setattr(fish, model_field, value)
+    return changes
+
+
 def find_fish(fish_id):
     fish = Fish.get_or_none(Fish.id == fish_id)
     if fish is None:
@@ -213,7 +231,9 @@ def get_fish(fish_id):
 @admin_required
 def create_fish():
     fish = Fish(**fish_fields_from_payload(json_body()))
-    save_fish(fish)
+    with database.atomic():
+        save_fish(fish)
+        AuditEvent.record(g.user, 'fish.create', fish_id=fish.id, details={'scientific_name': fish.scientific_name})
     return success(201, fish=fish_for_api(fish, fishtank_counts()))
 
 
@@ -222,9 +242,11 @@ def create_fish():
 @admin_required
 def update_fish(fish_id):
     fish = find_fish(fish_id)
-    for model_field, value in fish_fields_from_payload(json_body(), fish).items():
-        setattr(fish, model_field, value)
-    save_fish(fish)
+    changes = apply_fish_fields(fish, fish_fields_from_payload(json_body(), fish))
+    with database.atomic():
+        save_fish(fish)
+        if changes:
+            AuditEvent.record(g.user, 'fish.update', fish_id=fish.id, details={'changes': changes})
     return success(fish=fish_for_api(fish, fishtank_counts()))
 
 
@@ -241,6 +263,7 @@ def delete_fish(fish_id):
                 fish.scientific_name, fishtank_count), 409)
         FishPicture.delete().where(FishPicture.fish == fish).execute()
         fish.delete_instance()
+        AuditEvent.record(g.user, 'fish.delete', fish_id=fish_id, details={'scientific_name': fish.scientific_name})
     return success(message='fish removed', id=fish_id)
 
 
@@ -250,8 +273,10 @@ def delete_fish(fish_id):
 def retire_fish(fish_id):
     fish = find_fish(fish_id)
     if not fish.is_retired():
-        fish.retired_at = utcnow()
-        fish.save()
+        with database.atomic():
+            fish.retired_at = utcnow()
+            fish.save()
+            AuditEvent.record(g.user, 'fish.retire', fish_id=fish.id)
     return success(fish=fish_for_api(fish, fishtank_counts()))
 
 
@@ -260,6 +285,71 @@ def retire_fish(fish_id):
 def restore_fish(fish_id):
     fish = find_fish(fish_id)
     if fish.is_retired():
-        fish.retired_at = None
-        fish.save()
+        with database.atomic():
+            fish.retired_at = None
+            fish.save()
+            AuditEvent.record(g.user, 'fish.restore', fish_id=fish.id)
+    return success(fish=fish_for_api(fish, fishtank_counts()))
+
+
+PICTURE_FIELDS = {'url', 'source_url', 'author', 'licence', 'source'}
+PICTURE_TEXT_MAX_LENGTH = 200
+PICTURE_URL_MAX_LENGTH = 1000
+
+
+def read_picture_text(payload, name, required, max_length=PICTURE_TEXT_MAX_LENGTH):
+    value = payload.get(name)
+    if value is None or (isinstance(value, str) and not value.strip()):
+        if required:
+            raise ApiError('{} is required'.format(name), field=name)
+        return None
+    if not isinstance(value, str) or len(value.strip()) > max_length:
+        raise ApiError('{} must be text of at most {} characters'.format(name, max_length), field=name)
+    return value.strip()
+
+
+def read_picture_url(payload, name):
+    url = read_picture_text(payload, name, True, PICTURE_URL_MAX_LENGTH)
+    if not url.startswith('https://') or any(character.isspace() for character in url):
+        raise ApiError('{} must be an https:// address'.format(name), field=name)
+    return url
+
+
+# An admin links a picture they found, for a fish without one or one more, it is shown with its credit:
+# "author, licence, via source" and a link to its page. Only link pictures whose licence allows showing them
+# body: {"url": the image, "source_url": its page, "licence", "source": where it is from, "author" (optional)}
+@blueprint.route('/fish/<int:fish_id>/pictures', methods=['POST'])
+@admin_required
+def add_picture(fish_id):
+    payload = json_body()
+    reject_unknown_fields(payload, PICTURE_FIELDS)
+    fish = find_fish(fish_id)
+    values = {'url': read_picture_url(payload, 'url'), 'source_url': read_picture_url(payload, 'source_url'),
+              'licence': read_picture_text(payload, 'licence', True), 'source': read_picture_text(payload, 'source', True),
+              'author': read_picture_text(payload, 'author', False)}
+    if values['source'] == PICTURE_SOURCE_FISHBASE:
+        raise ApiError('FishBase pictures come from the FishBase import, please name the site you found it on',
+                       field='source')
+    if FishPicture.select().where(FishPicture.url == values['url']).exists():
+        raise ApiError('this picture is already linked to a fish', 409, field='url')
+    try:
+        with database.atomic():
+            picture = FishPicture.create(fish=fish, **values)
+            AuditEvent.record(g.user, 'picture.add', fish_id=fish.id, details={'picture': picture.to_dic()})
+    except IntegrityError:
+        raise ApiError('this picture is already linked to a fish', 409, field='url')
+    return success(201, picture=picture.to_dic(), fish=fish_for_api(fish, fishtank_counts()))
+
+
+@blueprint.route('/fish/<int:fish_id>/pictures/<int:picture_id>', methods=['DELETE'])
+@admin_required
+def remove_picture(fish_id, picture_id):
+    fish = find_fish(fish_id)
+    picture = FishPicture.get_or_none((FishPicture.id == picture_id) & (FishPicture.fish == fish))
+    if picture is None:
+        raise ApiError('no such picture', 404)
+    with database.atomic():
+        details = {'picture': picture.to_dic()}
+        picture.delete_instance()
+        AuditEvent.record(g.user, 'picture.remove', fish_id=fish.id, details=details)
     return success(fish=fish_for_api(fish, fishtank_counts()))

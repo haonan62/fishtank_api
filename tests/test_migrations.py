@@ -293,12 +293,16 @@ class CommittedDatabaseTest(unittest.TestCase):
         self.assertEqual(self.read("SELECT count(*) FROM fish WHERE data_source = 'aqua-fish.net' AND 'unknown' IN (in_species_temperament, cross_species_temperament)"),
                          [(0,)])
 
-    def test_every_picture_is_a_reusable_fishbase_photo_of_a_known_fish(self):
+    def test_every_picture_is_a_reusable_photo_of_a_known_fish(self):
         self.assertEqual(self.read('SELECT count(*) FROM fish_picture WHERE fish_id NOT IN (SELECT id FROM fish)'), [(0,)])
-        self.assertEqual(self.read("SELECT count(*) FROM fish_picture WHERE url NOT LIKE 'https://www.fishbase.se/images/species/%' OR source_url NOT LIKE 'https://www.fishbase.se/summary/%'"),
+        self.assertEqual(self.read("SELECT count(*) FROM fish_picture WHERE source = 'FishBase' AND (url NOT LIKE 'https://www.fishbase.se/images/species/%' OR source_url NOT LIKE 'https://www.fishbase.se/summary/%')"),
                          [(0,)])
-        self.assertEqual(set(self.read('SELECT DISTINCT licence FROM fish_picture')),
+        self.assertEqual(set(self.read("SELECT DISTINCT licence FROM fish_picture WHERE source = 'FishBase'")),
                          {('free use',), ('non-commercial use',), ('public domain',)})
+        self.assertEqual(set(self.read('SELECT DISTINCT source FROM fish_picture')),
+                         {('FishBase',), ('Wikimedia Commons',), ('iNaturalist',), ('GBIF',)})
+        self.assertEqual(self.read("SELECT count(*) FROM fish_picture WHERE url NOT LIKE 'https://%' OR source_url NOT LIKE 'https://%'"),
+                         [(0,)])
 
 
 class FishModelTest(unittest.TestCase):
@@ -326,9 +330,9 @@ class FishModelTest(unittest.TestCase):
         self.assertIsNone(Fish(scientific_name='Blood parrot cichlid').fishbase_url())
 
     def test_to_dic_lists_pictures_with_fishbase_credit(self):
-        picture = FishPicture.select().where(FishPicture.author.is_null(False)).order_by(FishPicture.id).get()
+        picture = FishPicture.select().where(FishPicture.author.is_null(False) & (FishPicture.source == 'FishBase')).order_by(FishPicture.id).get()
         dic = picture.fish.to_dic()
-        self.assertIn({'url': picture.url, 'author': picture.author, 'licence': picture.licence,
+        self.assertIn({'id': picture.id, 'url': picture.url, 'author': picture.author, 'licence': picture.licence, 'source': 'FishBase',
                        'credit': picture.author + ', from FishBase', 'source_url': picture.source_url}, dic['pictures'])
         self.assertEqual(FishPicture(author=None).credit(), 'from FishBase')
 

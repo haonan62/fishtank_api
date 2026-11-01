@@ -8,7 +8,7 @@ import sys
 # so migrating an up to date database just copies it
 # Usage: python -m fishtank.migrations data/fish.db data/fish_migrated.db
 
-LATEST_VERSION = 6
+LATEST_VERSION = 9
 
 FISH_COLUMNS = ['scientific_name', 'common_name', 'family_name', 'size_min', 'size_max', 'ph_min', 'ph_max',
                 'water_hardness_min', 'water_hardness_max', 'temperature_min', 'temperature_max', 'reproduce_method',
@@ -193,8 +193,57 @@ WHERE in_species_temperament = 'peaceful' AND cross_species_temperament != 'unkn
         [SCHOOLING_GROUP_SIZE, GROUP_SIZE_LIST_SOURCE] + SCHOOLING_GENERA)
 
 
+# Version 7: pictures come from more than FishBase, each says where it comes from, so it is credited the way
+# its source asks: FishBase, Wikimedia Commons or iNaturalist. The pictures so far all come from FishBase
+def upgrade_to_version_7(connection):
+    connection.execute("ALTER TABLE fish_picture ADD COLUMN source char(50) not null default 'FishBase'")
+
+
+# Version 8: users who know a fish suggest its temperament, size and group, an admin approves or rejects each suggestion
+# A suggestion keeps what was proposed, approving it copies the values onto the fish
+def upgrade_to_version_8(connection):
+    connection.execute('''CREATE TABLE temperament_suggestion(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    fish_id int not null references fish(id) on delete cascade,
+    user_id int references user(id) on delete set null,
+    in_species_temperament char(36) not null,
+    cross_species_temperament char(36) not null,
+    size_min int,
+    size_max int,
+    minimum_group_size int,
+    note text,
+    status char(10) not null default 'pending' check (status in ('pending', 'approved', 'rejected')),
+    created_at datetime not null,
+    reviewed_by int references user(id) on delete set null,
+    reviewed_at datetime
+)''')
+    connection.execute('CREATE INDEX temperament_suggestion_status ON temperament_suggestion(status, created_at)')
+    connection.execute('CREATE INDEX temperament_suggestion_fish_id ON temperament_suggestion(fish_id)')
+
+
+# Version 9: a fishtank can be shared read only through its own token, which its owner can withdraw at any time,
+# the key that changes the fishtank stays private
+# Every change admins make (fish, roles, suggestions, imports) is recorded in the audit log, what changed is kept as json
+def upgrade_to_version_9(connection):
+    connection.execute('ALTER TABLE fishtank ADD COLUMN share_token char(64)')
+    connection.execute('CREATE UNIQUE INDEX fishtank_share_token ON fishtank(share_token)')
+    connection.execute('''CREATE TABLE audit_event(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id int references user(id) on delete set null,
+    username char(32),
+    action char(40) not null,
+    fish_id int,
+    target_user_id int,
+    details text,
+    created_at datetime not null
+)''')
+    connection.execute('CREATE INDEX audit_event_created_at ON audit_event(created_at)')
+    connection.execute('CREATE INDEX audit_event_fish_id ON audit_event(fish_id)')
+
+
 UPGRADE_STEPS = {1: upgrade_to_version_1, 2: upgrade_to_version_2, 3: upgrade_to_version_3, 4: upgrade_to_version_4,
-                 5: upgrade_to_version_5, 6: upgrade_to_version_6}
+                 5: upgrade_to_version_5, 6: upgrade_to_version_6, 7: upgrade_to_version_7, 8: upgrade_to_version_8,
+                 9: upgrade_to_version_9}
 
 
 def migrate(source_path, target_path):

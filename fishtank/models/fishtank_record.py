@@ -29,6 +29,8 @@ class FishtankRecord(BaseModel):
     created_at = DateTimeField(default=utcnow)
     updated_at = DateTimeField(default=utcnow)
     expires_at = DateTimeField(null=True)
+    # set while the fishtank is shared read only, the key itself is never shown to the people it is shared with
+    share_token = CharField(null=True, unique=True)
 
     class Meta:
         table_name = 'fishtank'
@@ -59,8 +61,40 @@ class FishtankRecord(BaseModel):
             return record
         return None
 
+    # a shared fishtank, for anyone with the link, as long as its owner shares it and it has not expired
+    @classmethod
+    def find_shared(cls, token):
+        if not isinstance(token, str):
+            return None
+        record = cls.get_or_none(cls.share_token == token)
+        if record is None or (record.owner_id is None and record.expires_at <= utcnow()):
+            return None
+        return record
+
     def is_saved(self):
         return self.owner_id is not None
+
+    def share(self):
+        if self.share_token is None:
+            self.share_token = secrets.token_urlsafe(24)
+
+    def stop_sharing(self):
+        self.share_token = None
+
+    # A new fishtank for owner (a visitor when None) with the same name, size and fish
+    # Retired fish cannot be added anymore, they are left out and returned, so the copy can say so
+    def copy_for(self, owner, name=None):
+        copy = FishtankRecord.create_for(owner, name=name if name is not None else self.name, size=self.size())
+        skipped = []
+        rows = []
+        for entry in self.entries():
+            if entry.fish.is_retired():
+                skipped.append(entry.fish)
+            else:
+                rows.append({'fishtank': copy.id, 'fish': entry.fish.id, 'count': entry.count})
+        if rows:
+            FishtankFish.insert_many(rows).execute()
+        return copy, skipped
 
     def size(self):
         return (self.length, self.width, self.height)
@@ -94,22 +128,27 @@ class FishtankRecord(BaseModel):
             FishtankFish.insert_many(rows).execute()
 
     def to_dic(self):
+        return {'key': self.key, **self.contents_dic(), 'saved': self.is_saved(), 'share_token': self.share_token,
+                'created_at': to_iso(self.created_at), 'expires_at': to_iso(self.expires_at)}
+
+    # what a shared fishtank shows: no key, no owner, nothing that changes it
+    def shared_dic(self):
+        return {'share_token': self.share_token, **self.contents_dic(),
+                'owner': self.owner.username if self.owner_id is not None else None}
+
+    def contents_dic(self):
         entries = list(self.entries())
         residents = [(entry.fish, entry.count) for entry in entries]
         stocking = assess_stocking(self.size(), residents)
         return {
-            'key': self.key,
             'name': self.name,
             'size': {'length': self.length, 'width': self.width, 'height': self.height},
-            'saved': self.is_saved(),
             'fish': [{'id': entry.fish.id, 'scientific_name': entry.fish.scientific_name,
                       'common_name': entry.fish.common_name, 'count': entry.count} for entry in entries],
             # advice only, a fishtank can be crowded or keep a lonely schooling fish
             'stocking': stocking,
             'warnings': tank_warnings(self.size(), residents, stocking),
-            'created_at': to_iso(self.created_at),
             'updated_at': to_iso(self.updated_at),
-            'expires_at': to_iso(self.expires_at)
         }
 
 
