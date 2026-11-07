@@ -5,6 +5,7 @@ __pycache__/
 # Local environment and runtime data
 .venv/
 instance/
+backups/
 
 # Editors
 .vscode/

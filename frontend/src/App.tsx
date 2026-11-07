@@ -15,6 +15,7 @@ import { Account } from './pages/Account'
 import { Catalogue } from './pages/Catalogue'
 import { FishPage } from './pages/FishPage'
 import { Home } from './pages/Home'
+import { Privacy, Terms } from './pages/Legal'
 import { NewTank, NotFound } from './pages/Misc'
 import { MyTanks } from './pages/MyTanks'
 import { SharedTank } from './pages/SharedTank'
@@ -36,6 +37,8 @@ export function App() {
                 <Route path="my-tanks" element={<MyTanks />} />
                 <Route path="account" element={<Account />} />
                 <Route path="shared/:token" element={<SharedTank />} />
+                <Route path="privacy" element={<Privacy />} />
+                <Route path="terms" element={<Terms />} />
                 <Route path="*" element={<NotFound />} />
               </Route>
               <Route path="admin" element={<AdminLayout />}>

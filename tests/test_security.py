@@ -322,10 +322,10 @@ class SecurityHeadersTest(ApiTestCase):
 
     def assert_security_headers(self, response):
         policy = response.headers['Content-Security-Policy']
-        for directive in ("default-src 'self'", "script-src 'self'", "frame-ancestors 'none'",
-                          'https://fonts.googleapis.com', 'https://fonts.gstatic.com'):
+        for directive in ("default-src 'self'", "script-src 'self'", "font-src 'self'", "frame-ancestors 'none'"):
             self.assertIn(directive, policy)
         self.assertNotIn('unsafe-inline', policy)
+        self.assertNotIn('fonts.g', policy)
         self.assertEqual(response.headers['X-Content-Type-Options'], 'nosniff')
         self.assertEqual(response.headers['Referrer-Policy'], 'strict-origin-when-cross-origin')
         self.assertEqual(response.headers['X-Frame-Options'], 'DENY')

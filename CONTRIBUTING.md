@@ -46,7 +46,8 @@ To try the admin endpoints locally, run `flask --app fishtank create-admin <user
 fishtank/                 the app, one python package
   __init__.py             create_app(), loads the app only when one is made
   app.py                  the Flask app factory: blueprints, errors, the database, security headers, gzip, the built ui
-  cli.py                  flask commands: create-admin, set-role
+  cli.py                  flask commands: create-admin, set-role, backup
+  backup.py               a checked, compressed copy of the database, and removing older copies
   db.py                   the peewee database, BaseModel, time helpers, setting up the app's database
   migrations.py           versioned schema upgrades (sqlite user_version), python -m fishtank.migrations
   fishbase_import.py      imports a FishBase release into a copy of the database
@@ -59,6 +60,7 @@ fishtank/                 the app, one python package
     fishtanks.py          /fishtanks: create, simulate (add / remove fish), save
     users.py              /users: admins list users and change roles
     review.py             suggestions from users, the catalogue as csv, the audit log
+    health.py             /healthz and /readyz for monitoring tools
   models/                 database tables (peewee models)
     fish.py               Fish and FishPicture, including the compatibility rules between two fish
     user.py               User and AuthToken
@@ -81,6 +83,9 @@ frontend/                 the web ui
   src/components/         shared pieces: aquarium, fish detail, filters, dialogs, buttons
   src/pages/              one file per page, admin/ holds the admin portal
 data/fish.db              the committed fish database, the app never writes to it
+deploy/nginx.conf         https in front of the app, see Deployment in README.md
+gunicorn.conf.py          the server settings in production
+BACKLOG.md                what comes after the launch
 ```
 
 Only `api/`, `cli.py` and `__init__.py` know about Flask and http. Below them, `simulation/` works on `Fish` from

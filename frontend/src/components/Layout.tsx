@@ -137,6 +137,16 @@ export function Footer() {
           </a>
           . Photos from FishBase, Wikimedia Commons and iNaturalist, each credited to its photographer with its licence.
         </p>
+        <p className="mt-2">
+          A non-commercial project.{' '}
+          <Link to="/privacy" className="underline hover:text-ink">
+            Privacy
+          </Link>{' '}
+          ·{' '}
+          <Link to="/terms" className="underline hover:text-ink">
+            Terms
+          </Link>
+        </p>
       </div>
     </footer>
   )
