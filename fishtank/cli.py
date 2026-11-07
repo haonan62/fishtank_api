@@ -2,6 +2,9 @@ import click
 
 from fishtank.api.auth import check_new_credentials
 from fishtank.api.users import LastAdminError, change_role
+from fishtank.backup import DEFAULT_KEEP, RATE_LIMIT_RETENTION, BackupError, make_backup
+from fishtank.db import database, utcnow
+from fishtank.models.rate_limit import RateLimitHit
 from fishtank.models.user import ROLE_ADMIN, ROLES, User
 
 
@@ -31,3 +34,16 @@ def register_commands(app):
         except LastAdminError as e:
             raise click.ClickException(str(e))
         click.echo('{} is now {}'.format(user.username, role))
+
+    # meant to run weekly from cron, see README.md
+    @app.cli.command('backup')
+    @click.argument('folder')
+    @click.option('--keep', default=DEFAULT_KEEP, show_default=True, help='How many backups to keep, older ones are removed')
+    def backup(folder, keep):
+        # rate limits hold ip addresses, which neither the app nor a backup needs once their window has passed
+        RateLimitHit.delete().where(RateLimitHit.created_at <= utcnow() - RATE_LIMIT_RETENTION).execute()
+        try:
+            path, removed = make_backup(database.database, folder, keep)
+        except (BackupError, OSError) as e:
+            raise click.ClickException(str(e))
+        click.echo('wrote {}, removed {} older'.format(path, len(removed)))

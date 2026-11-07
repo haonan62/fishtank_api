@@ -1,24 +1,26 @@
-version: "3"
+# One app behind nginx on a small server, see "Deployment" in README.md
 services:
   web:
-    # replace username/repo:tag with your name and image details
-    image: haonan62/fishtank:api
-    deploy:
-      # users and fishtanks live in one sqlite file, replicas would each have their own
-      replicas: 1
-      resources:
-        limits:
-          cpus: "0.1"
-          memory: 50M
-      restart_policy:
-        condition: on-failure
+    build: .
+    image: fishtank:latest
+    restart: unless-stopped
+    environment:
+      # nginx sits in front of the app, see deploy/nginx.conf
+      FISHTANK_PROXIES: "1"
     ports:
-      - "80:5000"
+      # only nginx on this machine reaches the app, the login cookie needs its https
+      - "127.0.0.1:5000:5000"
     volumes:
       - fishtank-data:/app/instance
-    networks:
-      - webnet
-networks:
-  webnet:
+      - fishtank-backups:/app/backups
+    # users and fishtanks live in one sqlite file, so one container. It used about 60 MB serving the catalogue to 8 clients
+    mem_limit: 128m
+    cpus: 1
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
 volumes:
   fishtank-data:
+  fishtank-backups:

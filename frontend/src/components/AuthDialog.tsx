@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { Link } from 'react-router'
 
 import { ApiError, api } from '../api/client'
 import type { Fishtank } from '../api/types'
@@ -141,6 +142,19 @@ export function AuthDialog() {
         <Button type="submit" busy={busy} className="w-full">
           {mode === 'login' ? 'Log in' : 'Create account'}
         </Button>
+        {mode === 'register' && (
+          <p className="text-center text-xs text-muted">
+            By creating an account you accept the{' '}
+            <Link to="/terms" onClick={closeDialog} className="underline hover:text-ink">
+              terms
+            </Link>{' '}
+            and{' '}
+            <Link to="/privacy" onClick={closeDialog} className="underline hover:text-ink">
+              privacy notice
+            </Link>
+            .
+          </p>
+        )}
       </form>
       <p className="mt-4 text-center text-sm text-muted">
         {mode === 'login' ? 'New here? ' : 'Already have an account? '}

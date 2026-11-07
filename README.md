@@ -19,30 +19,78 @@ Please refer to [Functions to add](#Functions-to-add) to get the detailed proble
 
 ## Getting Started
 
-Run git clone <https://github.com/haonan62/fishtank_api.git>
-
 ### Prerequisites
 
-```
-Python version 3.11 or newer
-Python packages: see pyproject.toml (flask, peewee, gunicorn)
+- Python 3.11 or newer
+- Node 20.19 or newer, for the web ui
+
+### Quick start
+
+From a fresh clone, install the api into a virtual environment:
+
+```bash
+git clone https://github.com/haonan62/fishtank_api.git
 ```
 
-### Installing
-
-```
-Activate virtual environment, run pip install -e .
+```bash
+cd fishtank_api
 ```
 
-```
-To run the app, enter "flask --app fishtank run --debug"
-The web ui is served at http://127.0.0.1:5000 once it is built: in frontend/, run npm ci, then npm run build (Node 20.19 or newer)
-While working on the ui, run npm run dev in frontend/ as well and open http://localhost:5173, it reloads on every change
+```bash
+python3 -m venv .venv && source .venv/bin/activate
 ```
 
+```bash
+pip install -e .
 ```
-To run the tests, enter "python -m unittest -v", and for the web ui "npm test" in frontend/
+
+Build the web ui once, Flask serves the built files itself:
+
+```bash
+npm --prefix frontend ci && npm --prefix frontend run build
 ```
+
+Make yourself an admin, it asks for a password (skip this to only browse and simulate as a visitor):
+
+```bash
+flask --app fishtank create-admin <username>
+```
+
+Start the app, then open http://127.0.0.1:5000:
+
+```bash
+flask --app fishtank run --debug
+```
+
+On macOS port 5000 is often taken by the AirPlay Receiver ("Address already in use", or a 403 from AirTunes).
+Turn it off in System Settings → General → AirDrop & Handoff, or run on another port and open that one instead:
+
+```bash
+flask --app fishtank run --debug --port 5050
+```
+
+Admins can promote other users in the web ui, or with `flask --app fishtank set-role <username> admin`.
+
+### Working on the web ui
+
+Keep Flask running, and start Vite in a second terminal, then open http://localhost:5173, it reloads on every change
+and sends api calls on to Flask. When Flask runs on another port, tell Vite which, e.g. `FISHTANK_API=http://127.0.0.1:5050`:
+
+```bash
+npm --prefix frontend run dev
+```
+
+### Running the tests
+
+```bash
+python -m unittest -v
+```
+
+```bash
+npm --prefix frontend test
+```
+
+### Notes
 
 ```
 The login cookie of the web ui is only sent over https. Chrome and Firefox make an exception for localhost,
@@ -54,11 +102,6 @@ The app never writes to data/fish.db, it works on its own database: FISHTANK_DAT
 The first time the app starts it copies data/fish.db there, every start after brings it to the latest schema
 Users, fishtanks and fish changed by admins live only in the app's database, which is not committed
 Fish added to data/fish.db later only reach an app database that is created after
-```
-
-```
-To make the first admin, enter "flask --app fishtank create-admin <username>" and type a password
-Admins can then promote other users through the api, or enter "flask --app fishtank set-role <username> admin"
 ```
 
 ```
@@ -82,7 +125,8 @@ asked politely), check pictures.json, then
 "python -m fishtank.picture_import apply pictures.json <old database> <new database>", the old database is left unchanged
 ```
 
-The layout of the code, and how to work on it together, is described in [CONTRIBUTING.md](./CONTRIBUTING.md)
+The layout of the code, and how to work on it together, is described in [CONTRIBUTING.md](./CONTRIBUTING.md).
+What comes after the launch is in [BACKLOG.md](./BACKLOG.md).
 
 ## Important APIs and their functionalities
 
@@ -285,16 +329,75 @@ fuzzy search(difficult, might make more sense to put into frontend)
 
 ## Deployment
 
-Please use gunicorn and nginx to serve the production app, e.g. gunicorn -b 0.0.0.0:5000 "fishtank:create_app()".
-The app keeps its data in one sqlite file, so run a single instance and keep the file (FISHTANK_DATABASE) on a persistent volume.
-Serve it over https, the login cookie is only sent over https. Behind nginx, set FISHTANK_PROXIES to the number of proxies
-in front of the app (1 for nginx alone), so rate limits count the visitor's ip address from X-Forwarded-For instead of
-the proxy's, and https is recognised from X-Forwarded-Proto. Leave it unset when nothing sits in front of the app,
-otherwise anyone could pick their ip address by sending X-Forwarded-For.
+The app runs in one container behind nginx, which adds https. It fits a very small server: one process with four threads
+uses about 60 MB of memory serving the catalogue, and the container is limited to 128 MB (`docker-compose.yml`).
+
+Start the app (it listens on 127.0.0.1:5000 only) and make the first admin:
+
+```bash
+docker compose up -d --build
+```
+
+```bash
+docker compose exec web flask --app fishtank create-admin <username>
+```
+
+Copy [deploy/nginx.conf](./deploy/nginx.conf) to `/etc/nginx/conf.d/fishtank.conf` on the server, replace `example.org` with
+your domain, and follow the steps at the top of the file. The login cookie is only sent over https.
+
+`FISHTANK_PROXIES` is the number of proxies in front of the app (1 for nginx, already set in `docker-compose.yml`), so rate limits
+count the visitor's ip address from X-Forwarded-For and https is recognised from X-Forwarded-Proto. Leave it unset when nothing sits
+in front of the app, otherwise anyone could pick their ip address by sending X-Forwarded-For.
+
+The app keeps its data in one sqlite file in write-ahead log mode, so run a single container and keep its volume on a local disk,
+not on a network drive. `gunicorn.conf.py` has the server settings, `WEB_CONCURRENCY` sets more processes when there is memory for them.
+
 Every answer carries a Content-Security-Policy, X-Content-Type-Options, Referrer-Policy and X-Frame-Options,
 and Strict-Transport-Security over https. A ui that loads files from somewhere new needs CONTENT_SECURITY_POLICY
-in fishtank/app.py changed with it. If you want configuration files for both, please approach the authors. But googling will be fine, there are plenty of online tutorials.
-There is also a separate branch for docker deployment, please refer to the branches or approach authors for deployment details.
+in fishtank/app.py changed with it.
+
+### Health checks
+
+Both need no login and answer `{"status": "success"}` with a 200, so any monitoring tool can scrape them by status alone:
+
+| Endpoint | Means | Fails when |
+| --- | --- | --- |
+| `GET /healthz` | the process is up | the app is down or stuck, it does not touch the database |
+| `GET /readyz` | the app can serve requests | also when the database cannot be read, with a 503 |
+
+Docker checks `/readyz` every minute, `docker ps` shows the container as healthy or unhealthy.
+
+### Backups
+
+`flask --app fishtank backup <folder>` writes a checked, compressed copy of the database while the app keeps running, then removes all
+but the newest backups (4 by default, change it with `--keep`). Older backups only go once the new one is safely written, and it only touches files named like a backup.
+A backup is about 150 KB with a few users. It also forgets ip addresses from rate limits that have passed.
+
+To run it every Sunday at 03:00, add this to the server's crontab with `crontab -e`, with the folder of this project:
+
+```
+0 3 * * 0 cd /path/to/fishtank_api && docker compose exec -T web flask --app fishtank backup /app/backups >> backups.log 2>&1
+```
+
+Backups live on the same disk as the database, so now and then copy the newest one somewhere else, it holds password hashes so keep it private:
+
+```bash
+docker compose cp web:/app/backups ./backups
+```
+
+To restore the newest backup, stop the app, replace its database, and start it again:
+
+```bash
+docker compose stop web
+```
+
+```bash
+docker compose run --rm --no-deps -T web sh -c 'cd /app/instance && rm -f fishtank.db-wal fishtank.db-shm && gunzip -c "$(ls -1 /app/backups/fishtank-*.db.gz | tail -1)" > fishtank.db'
+```
+
+```bash
+docker compose up -d web
+```
 
 ## Built With
 
@@ -313,6 +416,9 @@ The code of this project is licensed under the MIT License
 The group sizes of schooling fish (group_size_source "Fishtank list") are this project's own starting values:
 6 for fish of genera known to school or shoal, the minimum most fishkeeping guides give. No open dataset records
 it per species, FishBase marks only 2 of our fish as schooling and ShoalBase (CC BY-NC-ND) cannot be adapted
+
+This site runs as a non-commercial project, and has to stay one to use this data: 462 of the 1,145 pictures and all FishBase
+data are licensed for non-commercial use only. Running it commercially means removing them first.
 
 The data in data/fish.db is not covered by the MIT License:
 * Fish with data_source "FishBase 25.04", the FishBase species codes and all pictures come from FishBase and are licensed

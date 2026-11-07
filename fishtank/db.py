@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 import os
+import sqlite3
 
 from peewee import Model, SqliteDatabase
 
@@ -32,6 +33,17 @@ def prepare_database(path):
     else:
         os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
         migrations.migrate(SEED_DATABASE, path)
+    use_write_ahead_log(path)
+
+
+# Readers no longer wait for a writer, and a writer not for readers. Sqlite remembers the mode in the file,
+# so only the app's own database gets it: the committed data/fish.db has to stay one plain file
+def use_write_ahead_log(path):
+    connection = sqlite3.connect(path)
+    try:
+        connection.execute('PRAGMA journal_mode = wal')
+    finally:
+        connection.close()
 
 
 def use_database(path):

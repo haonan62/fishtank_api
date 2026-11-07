@@ -6,7 +6,7 @@ from werkzeug.exceptions import HTTPException
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import safe_join
 
-from fishtank.api import auth, fish, fishtanks, review, users
+from fishtank.api import auth, fish, fishtanks, health, review, users
 from fishtank.api.common import ApiError, clear_session_cookies, error_response, load_current_user
 from fishtank.cli import register_commands
 from fishtank.db import DEFAULT_APP_DATABASE, database, prepare_database, use_database
@@ -19,13 +19,13 @@ FRONTEND_DIST = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '
 ASSET_MAX_AGE = 365 * 24 * 3600
 GZIP_MIN_SIZE = 1024
 
-# The built ui only loads its own files and the Google Fonts stylesheet, fish pictures are hosted by FishBase
+# The built ui only loads its own files, its fonts included, so visitors are not reported to a font host
 # React sets inline styles through the dom, which a policy without 'unsafe-inline' still allows
 CONTENT_SECURITY_POLICY = '; '.join([
     "default-src 'self'",
     "script-src 'self'",
-    "style-src 'self' https://fonts.googleapis.com",
-    "font-src 'self' https://fonts.gstatic.com",
+    "style-src 'self'",
+    "font-src 'self'",
     # pictures are linked from FishBase, Wikimedia Commons, iNaturalist and the collections GBIF links to
     "img-src 'self' data: https:",
     "connect-src 'self'",
@@ -67,9 +67,13 @@ def create_app(database_path=None):
 
     for module in (auth, fish, fishtanks, review, users):
         app.register_blueprint(module.blueprint, url_prefix=API_PREFIX)
+    app.register_blueprint(health.blueprint)
 
     @app.before_request
     def open_database_and_find_user():
+        # health checks answer on their own, /healthz has to work even when the database does not
+        if request.blueprint == health.blueprint.name:
+            return
         database.connect(reuse_if_open=True)
         load_current_user()
 
