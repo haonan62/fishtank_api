@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router'
 
 import { useAuth } from '../auth/AuthContext'
+import { useOnline } from '../lib/useOnline'
 import { AuthDialog } from './AuthDialog'
 import { buttonClasses } from './ui'
 
@@ -79,8 +80,14 @@ function UserMenu() {
 
 export function Layout() {
   const { user, ready, openDialog } = useAuth()
+  const online = useOnline()
   return (
     <div className="flex min-h-dvh flex-col">
+      {!online && (
+        <p role="status" className="bg-warn-soft px-4 py-2 text-center text-sm text-ink">
+          You're offline. The fish catalogue still works, tanks need a connection.
+        </p>
+      )}
       <header className="sticky top-0 z-20 border-b border-line bg-bg/85 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-4 sm:gap-4 sm:px-6">
           <Logo />

@@ -71,6 +71,9 @@ flask --app fishtank run --debug --port 5050
 
 Admins can promote other users in the web ui, or with `flask --app fishtank set-role <username> admin`.
 
+The web ui installs like an app: "Add to Home Screen" in Safari on iOS, "Install app" in Chrome on Android and
+desktop. Installed or not, the fish catalogue keeps working without a connection, tanks need one.
+
 ### Working on the web ui
 
 Keep Flask running, and start Vite in a second terminal, then open http://localhost:5173, it reloads on every change

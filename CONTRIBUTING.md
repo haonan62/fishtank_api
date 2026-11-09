@@ -82,6 +82,8 @@ frontend/                 the web ui
   src/lib/                logic without ui: fish wording, water ranges, the catalogue, visitor tanks
   src/components/         shared pieces: aquarium, fish detail, filters, dialogs, buttons
   src/pages/              one file per page, admin/ holds the admin portal
+  public/icons/           the app icons, maskable.svg is the source of the full-bleed ones
+  vite.config.ts          the build, and what the service worker keeps for offline use
 data/fish.db              the committed fish database, the app never writes to it
 deploy/nginx.conf         https in front of the app, see Deployment in README.md
 gunicorn.conf.py          the server settings in production
@@ -103,6 +105,15 @@ and tested without a web server.
   The ui logs in with a cookie, so every request that changes something must come from `frontend/src/api/client.ts`,
   which adds the csrf token. Something anyone can do over and over without logging in (like creating a visitor's
   fishtank) gets a `RateLimit` in `fishtank/models/rate_limit.py`, checked with `check_rate_limit`.
+- **Changing an answer of the api**: installed apps and phones keep old versions of the ui for a while, so add
+  fields and endpoints rather than renaming or removing them. If one has to go, keep the old one until no supported
+  version of the ui uses it.
+- **Offline**: the service worker keeps the built ui and the catalogue (`GET /fishtank_api/fish`), everything else
+  needs a connection. Something new that should work offline gets a `runtimeCaching` entry in `frontend/vite.config.ts`,
+  never for answers that belong to one user. Check offline changes with `npm run build` and the app served by Flask,
+  `npm run dev` runs without the service worker.
+- **App icons**: they are made from `frontend/public/favicon.svg` and `frontend/public/icons/maskable.svg`. On a Mac,
+  `qlmanage -t -s 512 -o <folder> <file>.svg` renders a 512 px png and `sips -z <size> <size>` resizes it.
 - **A schema change**: never edit an existing upgrade step. Add `upgrade_to_version_N` to `fishtank/migrations.py`,
   register it in `UPGRADE_STEPS`, bump `LATEST_VERSION`, update the matching peewee model, and test the step in
   `tests/test_migrations.py`. Then upgrade the committed database and replace it:
