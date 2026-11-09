@@ -202,6 +202,17 @@ class FrontendServingTest(ApiTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn('max-age=31536000', response.headers['Cache-Control'])
 
+    def test_the_installable_app_files_are_checked_for_updates(self):
+        for name in ('sw.js', 'manifest.webmanifest'):
+            with open(os.path.join(self.dist, name), 'w') as built:
+                built.write('{}')
+        manifest = self.client.get('/manifest.webmanifest')
+        self.assertEqual(manifest.mimetype, 'application/manifest+json')
+        # a service worker cached for a year would keep every visitor on an old ui
+        worker = self.client.get('/sw.js')
+        self.assertEqual(worker.mimetype, 'text/javascript')
+        self.assertNotIn('31536000', worker.headers['Cache-Control'])
+
     def test_api_paths_stay_json(self):
         for path in ('/fishtank_api/nope', '/fishtank_api/fishtanks/nope'):
             with self.subTest(path=path):

@@ -1,4 +1,5 @@
 import gzip
+import mimetypes
 import os
 
 from flask import Flask, abort, g, request, send_from_directory
@@ -17,6 +18,8 @@ API_PREFIX = '/fishtank_api'
 FRONTEND_DIST = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'frontend', 'dist')
 # vite puts a hash in the name of every built asset, so they can be cached for good
 ASSET_MAX_AGE = 365 * 24 * 3600
+# the web app manifest, which python does not know, browsers want it as json
+mimetypes.add_type('application/manifest+json', '.webmanifest')
 GZIP_MIN_SIZE = 1024
 
 # The built ui only loads its own files, its fonts included, so visitors are not reported to a font host

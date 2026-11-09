@@ -24,7 +24,7 @@ function Contact() {
 
 export function Privacy() {
   return (
-    <Page title="Privacy" updated="7 November 2026">
+    <Page title="Privacy" updated="9 November 2026">
       <p>Fishtank is a non-commercial hobby project. It keeps as little about you as it can, shows no ads, uses no analytics and sells nothing.</p>
 
       <h2>What is kept</h2>
@@ -45,7 +45,7 @@ export function Privacy() {
 
       <h2>Cookies and browser storage</h2>
       <p>
-        Two cookies keep you logged in and protect your account from forged requests, they last up to 30 days and only exist once you log in. Your browser also remembers the tanks you made as a visitor. None of this tracks you across sites.
+        Two cookies keep you logged in and protect your account from forged requests, they last up to 30 days and only exist once you log in. Your browser also remembers the tanks you made as a visitor, and keeps a copy of the app and the fish catalogue so they work offline. None of this tracks you across sites.
       </p>
 
       <h2>Pictures come from other sites</h2>
